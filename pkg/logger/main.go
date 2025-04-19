@@ -1,6 +1,8 @@
 package logger
 
-import "log/slog"
+import (
+	"log/slog"
+)
 
 var Record *slog.Logger
 

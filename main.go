@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"time"
 
 	mongo "cardano-valley/pkg/db"
 	"cardano-valley/pkg/discord"
@@ -22,6 +23,7 @@ var (
 	mdb *mongodb.Client
 	dbctx context.Context
 	dbcancel context.CancelFunc
+	CommandHistory *mongodb.Collection
 )
 
 // Discord Variables
@@ -47,6 +49,17 @@ var (
 	}
 )
 
+type (
+	Command struct {
+		Name        string
+		Timestamp   time.Time
+		UserID      string
+		GuildID     string
+		ChannelID   string
+		Arguments   []*discordgo.ApplicationCommandInteractionDataOption `json:"options"`
+	}
+)
+
 func init() {
 	// Setup DB
     mdb, ctx, cancel, err := mongo.Connect()
@@ -57,6 +70,8 @@ func init() {
 	dbctx = ctx
 	dbcancel = cancel
 	mongo.DB = mdb
+
+	CommandHistory = mongo.DB.Database("cardano-valley").Collection("command-history")
 }
 
 func main() {
@@ -82,6 +97,14 @@ func main() {
 				defer func() {
 					delete(lockout, i.Member.User.ID)
 				}()
+				CommandHistory.InsertOne(dbctx, Command{
+					Name:      i.ApplicationCommandData().Name,
+					Timestamp: time.Now(),
+					UserID:    i.Member.User.ID,
+					GuildID:   i.GuildID,
+					ChannelID: i.ChannelID,
+					Arguments: i.ApplicationCommandData().Options,
+				})
 				h(s, i)
 			} else {
 				s.InteractionRespond(i.Interaction, lockoutResponse)

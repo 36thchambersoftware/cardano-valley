@@ -3,7 +3,13 @@ package db
 import (
 	"cardano-valley/pkg/logger"
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
+	"io"
+	"log"
 	"os"
 	"time"
 
@@ -11,7 +17,18 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var DB *mongo.Client
+var (
+	DB *mongo.Client
+	CARDANO_VALLEY_CYPHER []byte
+)
+
+func init() {
+	key, ok := os.LookupEnv("CARDANO_VALLEY_CYPHER")
+	if !ok {
+		log.Fatalf("Missing token")
+	}
+	CARDANO_VALLEY_CYPHER = []byte(key)
+}
 
 func Close(client *mongo.Client, ctx context.Context, cancel context.CancelFunc){
 	defer cancel()
@@ -56,5 +73,56 @@ func Connect() (*mongo.Client, context.Context, context.CancelFunc, error) {
 
 	fmt.Println("Connected to MongoDB!")
 	return DB, ctx, cancel, err
+}
+
+func Encrypt(plaintext string) (string, error) {
+	block, err := aes.NewCipher(CARDANO_VALLEY_CYPHER)
+	if err != nil {
+		return "", err
+	}
+
+	aesGCM, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+
+	nonce := make([]byte, aesGCM.NonceSize())
+	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
+		return "", err
+	}
+
+	ciphertext := aesGCM.Seal(nonce, nonce, []byte(plaintext), nil)
+	return base64.StdEncoding.EncodeToString(ciphertext), nil
+}
+
+func Decrypt(encryptedString string) (string, error) {
+	ciphertext, err := base64.StdEncoding.DecodeString(encryptedString)
+	if err != nil {
+		return "", err
+	}
+
+	block, err := aes.NewCipher(CARDANO_VALLEY_CYPHER)
+	if err != nil {
+		return "", err
+	}
+
+	aesGCM, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+
+	nonceSize := aesGCM.NonceSize()
+	if len(ciphertext) < nonceSize {
+		return "", err
+	}
+
+	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
+
+	plaintext, err := aesGCM.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return "", err
+	}
+
+	return string(plaintext), nil
 }
 

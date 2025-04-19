@@ -8,7 +8,6 @@ require (
 	github.com/cardano-community/koios-go-client/v4 v4.0.0
 	go.mongodb.org/mongo-driver v1.17.1
 	golang.org/x/exp v0.0.0-20250210185358-939b2ce775ac
-	golang.org/x/text v0.17.0
 )
 
 require (
@@ -29,5 +28,6 @@ require (
 	golang.org/x/mod v0.23.0 // indirect
 	golang.org/x/sync v0.11.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
+	golang.org/x/text v0.17.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 )

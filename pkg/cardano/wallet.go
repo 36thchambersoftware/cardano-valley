@@ -32,21 +32,44 @@ var (
  * @param ID The Discord GuildID or the UserID of the wallet to generate.
  * @return error If there was an error during the generation process.
  */
- func GenerateWallet(ID string) error {
+ func GenerateWallet(ID string) (*Wallet, error) {
 	err := generatePaymentKey(ID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	err = generateStakeKey(ID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	err = generatePaymentAddress(ID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	wallet, err := LoadWallet(ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// // Encrypt and save the wallet to the db
+	// paymentKey, err := db.Encrypt(wallet.PaymentKey)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// signingPaymentKey, err := db.Encrypt(wallet.SigningPaymentKey)
+	// if err != nil {
+	// 	return err
+	// }
+	// signingStakeKey, err := db.Encrypt(wallet.SigningStakeKey)
+	// if err != nil {
+	// 	return err
+	// }
+	// stakeKey, err := db.Encrypt(wallet.StakeKey)
+	// if err != nil {
+	// 	return err
+	// }
+
+	return wallet, nil
 }
 
 func generatePaymentKey(ID string) error {

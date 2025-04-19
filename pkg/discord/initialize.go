@@ -33,26 +33,13 @@ var INITIALIZE_HANDLER = func(s *discordgo.Session, i *discordgo.InteractionCrea
 		},
 	})
 
-	err := cardano.GenerateWallet(i.GuildID)
+	wallet, err := cardano.GenerateWallet(i.GuildID)
 	if err != nil {
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Title: "Initialization Error",
 				Content: "Error generating wallet: " + err.Error(),
-				Flags:   discordgo.MessageFlagsEphemeral,
-			},
-		})
-		return
-	}
-
-	wallet, err := cardano.LoadWallet(i.GuildID)
-	if err != nil {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Title: "Initialization Error",
-				Content: "Error loading wallet: " + err.Error(),
 				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		})
