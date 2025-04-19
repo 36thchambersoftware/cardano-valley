@@ -75,7 +75,7 @@ func init() {
 }
 
 func main() {
-	defer mongo.Close(mdb, dbctx, dbcancel)
+	defer mongo.Close(mongo.DB, dbctx, dbcancel)
 	l := logger.Record
 
 	// Setup discord
@@ -97,14 +97,17 @@ func main() {
 				defer func() {
 					delete(lockout, i.Member.User.ID)
 				}()
-				CommandHistory.InsertOne(dbctx, Command{
+				
+				if _, err := CommandHistory.InsertOne(dbctx, Command{
 					Name:      i.ApplicationCommandData().Name,
 					Timestamp: time.Now(),
 					UserID:    i.Member.User.ID,
 					GuildID:   i.GuildID,
 					ChannelID: i.ChannelID,
 					Arguments: i.ApplicationCommandData().Options,
-				})
+				}); err != nil {
+					logger.Record.Error("Could not log command", "ERROR", err)
+				}
 				h(s, i)
 			} else {
 				s.InteractionRespond(i.Interaction, lockoutResponse)
