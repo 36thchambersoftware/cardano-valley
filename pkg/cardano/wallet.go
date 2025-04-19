@@ -141,11 +141,11 @@ func generateStakeKey(filename string) error {
 
 func generatePaymentAddress(filename string) (error) {
 	// Generate the stake keys
-	paymentKey := fmt.Sprintf("%s%s", filename, PaymentKeySuffix)
-	if _, err := os.Stat(paymentKey); os.IsNotExist(err) {
+	address := fmt.Sprintf("%s%s", filename, AddressSuffix)
+	if _, err := os.Stat(address); os.IsNotExist(err) {
+		paymentKey := fmt.Sprintf("%s%s", filename, PaymentKeySuffix)
 		stakeKey := fmt.Sprintf("%s%s", filename, StakeKeySuffix)
 		// Generate the payment address
-		address := fmt.Sprintf("%s%s", filename, AddressSuffix)
 		addressArgs := []string{
 			"address",
 			"build",
