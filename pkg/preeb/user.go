@@ -49,7 +49,7 @@ func LoadUser(userID string) User {
 func (u User) Save() interface{} {
 	collection := mongo.DB.Database("cardano-valley").Collection("user")
 	opts := options.Replace().SetUpsert(true)
-	filter := bson.D{{"id", u.ID}}
+	filter := bson.D{{Key: "id", Value: u.ID}}
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

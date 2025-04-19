@@ -41,8 +41,6 @@ var INITIALIZE_HANDLER = func(s *discordgo.Session, i *discordgo.InteractionCrea
 		return
 	}
 
-	logger.Record.Info("WALLET", "INFO", "Wallet generated successfully: %s", wallet.Address)
-
 	config := preeb.LoadConfig(i.GuildID)
 	config.Wallet = *wallet
 	config.Save()

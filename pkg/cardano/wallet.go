@@ -1,6 +1,7 @@
 package cardano
 
 import (
+	"cardano-valley/pkg/db"
 	"cardano-valley/pkg/logger"
 	"errors"
 	"fmt"
@@ -14,10 +15,12 @@ type (
 		SigningPaymentKey string `bson:"signing_payment_key,omitempty"`
 		StakeKey string `bson:"stake_key,omitempty"`
 		SigningStakeKey string `bson:"signing_stake_key,omitempty"`
+		DelegationCertificate string `bson:"delegation_certificate,omitempty"`
 	}
 )
 
 var (
+	KeyPrefix = "tmp/"
 	PaymentKeySuffix = ".vkey"
 	SigningKeySuffix = ".skey"
 	StakeKeySuffix = "_stake.vkey"
@@ -34,59 +37,55 @@ var (
  * @return error If there was an error during the generation process.
  */
  func GenerateWallet(ID string) (*Wallet, error) {
-	err := generatePaymentKey(ID)
-	if err != nil {
-		logger.Record.Error("WALLET", "ERROR", "Failed to generate payment key: %s", err)
-		return nil, err
+	wallet, err := LoadWallet(ID)
+	if err == nil {
+		logger.Record.Info("WALLET", "INFO", "Wallet already exists:", wallet.Address)
+		return wallet, nil
 	}
-	err = generateStakeKey(ID)
+
+	// If the wallet does not exist, proceed with generation
+	err = generatePaymentKey(ID)
 	if err != nil {
-		logger.Record.Error("WALLET", "ERROR", "Failed to generate stake key: %s", err)
-		return nil, err
-	}
-	err = generatePaymentAddress(ID)
-	if err != nil {
-		logger.Record.Error("WALLET", "ERROR", "Failed to generate payment address: %s", err)
 		return nil, err
 	}
 
-	wallet, err := LoadWallet(ID)
+	err = generateStakeKey(ID)
+	if err != nil {
+		logger.Record.Error("WALLET", "ERROR", "Failed to generate stake key: ", err)
+		return nil, err
+	}
+
+	err = generatePaymentAddress(ID)
+	if err != nil {
+		logger.Record.Error("WALLET", "ERROR", "Failed to generate payment address: ", err)
+		return nil, err
+	}
+
+	err = generateDelegationCertificate(ID)
+	if err != nil {
+		logger.Record.Error("WALLET", "ERROR", "Failed to generate delegation certificate: ", err)
+		return nil, err
+	}
+
+	wallet, err = LoadWallet(ID)
 	if err != nil {
 		logger.Record.Error("WALLET", "ERROR", "Failed to load wallet: %s", err)
 		return nil, err
 	}
 
-	logger.Record.Info("WALLET", "INFO", "Wallet generated successfully: %s", wallet.Address)
-
-	// // Encrypt and save the wallet to the db
-	// paymentKey, err := db.Encrypt(wallet.PaymentKey)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// signingPaymentKey, err := db.Encrypt(wallet.SigningPaymentKey)
-	// if err != nil {
-	// 	return err
-	// }
-	// signingStakeKey, err := db.Encrypt(wallet.SigningStakeKey)
-	// if err != nil {
-	// 	return err
-	// }
-	// stakeKey, err := db.Encrypt(wallet.StakeKey)
-	// if err != nil {
-	// 	return err
-	// }
+	logger.Record.Info("WALLET", "INFO", "Wallet generated successfully:", wallet.Address)
 
 	return wallet, nil
 }
 
-func generatePaymentKey(ID string) error {
+func generatePaymentKey(filename string) error {
 	// Check if the payment key file already exists
 	// If it does, skip the generation
 	// If it doesn't, generate the payment key
-	paymentKey := fmt.Sprintf("%s%s", ID, PaymentKeySuffix)
+	paymentKey := fmt.Sprintf("%s%s%s", KeyPrefix, filename, PaymentKeySuffix)
 	if _, err := os.Stat(paymentKey); os.IsNotExist(err) {
 		// Generate the payment keys
-		signingKey := fmt.Sprintf("%s%s", ID, SigningKeySuffix)
+		signingKey := fmt.Sprintf("%s%s%s", KeyPrefix, filename, SigningKeySuffix)
 		paymentArgs := CommandArgs{
 			"address",
 			"key-gen",
@@ -113,10 +112,10 @@ func generateStakeKey(filename string) error {
 	// Check if the payment key file already exists
 	// If it does, skip the generation
 	// If it doesn't, generate the payment key
-	stakeKey := fmt.Sprintf("%s%s", filename, StakeKeySuffix)
+	stakeKey := fmt.Sprintf("%s%s%s", KeyPrefix, filename, StakeKeySuffix)
 	if _, err := os.Stat(stakeKey); os.IsNotExist(err) {
 		// Generate the stake keys
-		signingStakeKey := fmt.Sprintf("%s%s", filename, StakeSigningKeySuffix)
+		signingStakeKey := fmt.Sprintf("%s%s%s", KeyPrefix, filename, StakeSigningKeySuffix)
 		stakeArgs := []string{
 			"conway",
 			"stake-address",
@@ -141,10 +140,10 @@ func generateStakeKey(filename string) error {
 
 func generatePaymentAddress(filename string) (error) {
 	// Generate the stake keys
-	address := fmt.Sprintf("%s%s", filename, AddressSuffix)
+	address := fmt.Sprintf("%s%s%s", KeyPrefix, filename, AddressSuffix)
 	if _, err := os.Stat(address); os.IsNotExist(err) {
-		paymentKey := fmt.Sprintf("%s%s", filename, PaymentKeySuffix)
-		stakeKey := fmt.Sprintf("%s%s", filename, StakeKeySuffix)
+		paymentKey := fmt.Sprintf("%s%s%s", KeyPrefix, filename, PaymentKeySuffix)
+		stakeKey := fmt.Sprintf("%s%s%s", KeyPrefix, filename, StakeKeySuffix)
 		// Generate the payment address
 		addressArgs := []string{
 			"address",
@@ -171,8 +170,8 @@ func generatePaymentAddress(filename string) (error) {
 }
 
 func generateDelegationCertificate(filename string) error {
-	stakeKey := fmt.Sprintf("%s%s", filename, StakeKeySuffix)
-	delegationCert := fmt.Sprintf("%s%s", filename, DelegationCertificateSuffix)
+	stakeKey := fmt.Sprintf("%s%s%s", KeyPrefix, filename, StakeKeySuffix)
+	delegationCert := fmt.Sprintf("%s%s%s", KeyPrefix, filename, DelegationCertificateSuffix)
 	if _, err := os.Stat(delegationCert); os.IsNotExist(err) {
 		// Generate the delegation certificate
 		delegationArgs := []string{
@@ -194,65 +193,65 @@ func generateDelegationCertificate(filename string) error {
 }
 
 func LoadWallet(ID string) (*Wallet, error) {
-	paymentKey := fmt.Sprintf("%s.vkey", ID)
-	signingPaymentKey := fmt.Sprintf("%s.skey", ID)
-	stakeKey := fmt.Sprintf("%s.vkey", ID)
-	signingStakeKey := fmt.Sprintf("%s.skey", ID)
-	address := fmt.Sprintf("%s.addr", ID)
+	paymentKey := fmt.Sprintf("%s%s%s", KeyPrefix, ID, PaymentKeySuffix)
+	signingPaymentKey := fmt.Sprintf("%s%s%s", KeyPrefix, ID, SigningKeySuffix)
+	stakeKey := fmt.Sprintf("%s%s%s", KeyPrefix, ID, StakeKeySuffix)
+	signingStakeKey := fmt.Sprintf("%s%s%s", KeyPrefix, ID, StakeSigningKeySuffix)
+	address := fmt.Sprintf("%s%s%s", KeyPrefix, ID, AddressSuffix)
+	delegationCert := fmt.Sprintf("%s%s%s", KeyPrefix, ID, DelegationCertificateSuffix)
+	
+	safePaymentKey, err := readAndEncryptKey(paymentKey)
+	if err != nil {
+		return nil, err
+	}
 
-	if _, err := os.Stat(paymentKey); os.IsNotExist(err) {
-		logger.Record.Error("WALLET", "ERROR", "Payment key file does not exist: %s", paymentKey)
-		return nil, fmt.Errorf("payment key file does not exist: %s", paymentKey)
-	}
-	if _, err := os.Stat(signingPaymentKey); os.IsNotExist(err) {
-		logger.Record.Error("WALLET", "ERROR", "Signing key file does not exist: %s", signingPaymentKey)
-		return nil, fmt.Errorf("signing key file does not exist: %s", signingPaymentKey)
-	}
-	if _, err := os.Stat(stakeKey); os.IsNotExist(err) {
-		logger.Record.Error("WALLET", "ERROR", "Stake key file does not exist: %s", stakeKey)
-		return nil, fmt.Errorf("stake key file does not exist: %s", stakeKey)
-	}
-	if _, err := os.Stat(signingStakeKey); os.IsNotExist(err) {
-		logger.Record.Error("WALLET", "ERROR", "Signing stake key file does not exist: %s", signingStakeKey)
-		return nil, fmt.Errorf("signing stake key file does not exist: %s", signingStakeKey)
-	}
-	if _, err := os.Stat(address); os.IsNotExist(err) {
-		logger.Record.Error("WALLET", "ERROR", "Address file does not exist: %s", address)
-		return nil, fmt.Errorf("address file does not exist: %s", address)
-	}
-	paymentKeyData, err := os.ReadFile(paymentKey)
+	safeSigningPaymentKey, err := readAndEncryptKey(signingPaymentKey)
 	if err != nil {
-		logger.Record.Error("WALLET", "ERROR", "Failed to read payment key file: %s", err)
-		return nil, fmt.Errorf("failed to read payment key file: %s", err)
+		return nil, err
 	}
-	signingKeyData, err := os.ReadFile(signingPaymentKey)
+	safeStakeKey, err := readAndEncryptKey(stakeKey)
 	if err != nil {
-		logger.Record.Error("WALLET", "ERROR", "Failed to read signing key file: %s", err)
-		return nil, fmt.Errorf("failed to read signing key file: %s", err)
+		return nil, err
 	}
-	stakeKeyData, err := os.ReadFile(stakeKey)
+	safeSigningStakeKey, err := readAndEncryptKey(signingStakeKey)
 	if err != nil {
-		logger.Record.Error("WALLET", "ERROR", "Failed to read stake key file: %s", err)
-		return nil, fmt.Errorf("failed to read stake key file: %s", err)
+		return nil, err
 	}
-	signingStakeKeyData, err := os.ReadFile(signingStakeKey)
-	if err != nil {
-		logger.Record.Error("WALLET", "ERROR", "Failed to read signing stake key file: %s", err)
-		return nil, fmt.Errorf("failed to read signing stake key file: %s", err)
-	}
+
 	addressData, err := os.ReadFile(address)
 	if err != nil {
-		logger.Record.Error("WALLET", "ERROR", "Failed to read address file: %s", err)
 		return nil, fmt.Errorf("failed to read address file: %s", err)
 	}
 
+	delegationCertData, err := os.ReadFile(delegationCert)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read delegation certificate file: %s", err)
+	}
+
 	wallet := &Wallet{
-		Address:         string(addressData),
-		PaymentKey:      string(paymentKeyData),
-		SigningPaymentKey: string(signingKeyData),
-		StakeKey:        string(stakeKeyData),
-		SigningStakeKey: string(signingStakeKeyData),
+		Address:         		string(addressData),
+		PaymentKey:      		string(safePaymentKey),
+		SigningPaymentKey: 		string(safeSigningPaymentKey),
+		StakeKey:        		string(safeStakeKey),
+		SigningStakeKey: 		string(safeSigningStakeKey),
+		DelegationCertificate:  string(delegationCertData),
 	}
 
 	return wallet, nil
+}
+
+func readAndEncryptKey(keyPath string) (string, error) {
+	keyData, err := os.ReadFile(keyPath)
+	if err != nil {
+		logger.Record.Error("WALLET", "ERROR", "Failed to read key file: ", err)
+		return "", fmt.Errorf("failed to read key file: %s", err)
+	}
+
+	safeKey, err := db.Encrypt(string(keyData))
+	if err != nil {
+		logger.Record.Error("WALLET", "ERROR", "Failed to encrypt key: ", err)
+		return "", fmt.Errorf("failed to encrypt key: %s", err)
+	}
+
+	return string(safeKey), nil
 }
