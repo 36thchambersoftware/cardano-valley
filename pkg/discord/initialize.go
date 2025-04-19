@@ -64,7 +64,7 @@ var INITIALIZE_HANDLER = func(s *discordgo.Session, i *discordgo.InteractionCrea
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Title: "Initialing Complete",
+			Title: "Initialization Complete",
 			Content: content,
 			Flags:   discordgo.MessageFlagsEphemeral,
 		},

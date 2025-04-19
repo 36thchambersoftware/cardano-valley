@@ -37,46 +37,46 @@ var (
  * @return error If there was an error during the generation process.
  */
  func GenerateWallet(ID string) (*Wallet, error) {
-	logger.Record.Info("WALLET", "INFO", "Checking if wallet exists...")
+	logger.Record.Info("WALLET", "Checking if wallet exists...")
 	wallet, err := LoadWallet(ID)
 	if err == nil {
-		logger.Record.Info("WALLET", "INFO", "Wallet already exists:", wallet.Address)
+		logger.Record.Info("WALLET", "Wallet already exists:", wallet.Address)
 		return wallet, nil
 	}
 
-	logger.Record.Info("WALLET", "INFO", "Wallet does not exist", "Generating new wallet...")
+	logger.Record.Info("WALLET", "Wallet does not exist", "Generating new wallet...")
 	// If the wallet does not exist, proceed with generation
 	err = generatePaymentKey(ID)
 	if err != nil {
-		logger.Record.Error("WALLET", "ERROR", "Failed to generate payment key: ", err)
+		logger.Record.Error("WALLET", "Failed to generate payment key: ", err)
 		return nil, err
 	}
 
 	err = generateStakeKey(ID)
 	if err != nil {
-		logger.Record.Error("WALLET", "ERROR", "Failed to generate stake key: ", err)
+		logger.Record.Error("WALLET", "Failed to generate stake key: ", err)
 		return nil, err
 	}
 
 	err = generatePaymentAddress(ID)
 	if err != nil {
-		logger.Record.Error("WALLET", "ERROR", "Failed to generate payment address: ", err)
+		logger.Record.Error("WALLET", "Failed to generate payment address: ", err)
 		return nil, err
 	}
 
 	err = generateDelegationCertificate(ID)
 	if err != nil {
-		logger.Record.Error("WALLET", "ERROR", "Failed to generate delegation certificate: ", err)
+		logger.Record.Error("WALLET", "Failed to generate delegation certificate: ", err)
 		return nil, err
 	}
 
 	wallet, err = LoadWallet(ID)
 	if err != nil {
-		logger.Record.Error("WALLET", "ERROR", "Failed to load wallet: %s", err)
+		logger.Record.Error("WALLET", "Failed to load wallet: ", err)
 		return nil, err
 	}
 
-	logger.Record.Info("WALLET", "INFO", "Wallet generated successfully:", wallet.Address)
+	logger.Record.Info("WALLET", "Wallet generated successfully:", "ADDRESS", wallet.Address)
 
 	return wallet, nil
 }
@@ -101,7 +101,7 @@ func generatePaymentKey(filename string) error {
 		//cardano-cli address key-gen --verification-key-file payment.vkey --signing-key-file payment.skey
 		_, err := Run(paymentArgs)
 		if err != nil {
-			logger.Record.Error("WALLET", "ERROR", "Failed to generate payment key: ", err)
+			logger.Record.Error("WALLET", "Failed to generate payment key: ", err)
 			return err
 		}
 	} else {
@@ -133,7 +133,7 @@ func generateStakeKey(filename string) error {
 		// cardano-cli conway stake-address key-gen --verification-key-file stake.vkey --signing-key-file stake.skey
 		_, err = Run(stakeArgs)
 		if err != nil {
-			logger.Record.Error("WALLET", "ERROR", "Failed to generate stake key: ", err)
+			logger.Record.Error("WALLET", "Failed to generate stake key: ", err)
 			return err
 		}
 	} else {
@@ -165,7 +165,7 @@ func generatePaymentAddress(filename string) (error) {
 		// cardano-cli address build --payment-verification-key-file payment.vkey --stake-verification-key-file stake.vkey --mainnet --out-file payment.addr
 		_, err := Run(addressArgs)
 		if err != nil {
-			logger.Record.Error("WALLET", "ERROR", "Failed to generate payment address: ", err)
+			logger.Record.Error("WALLET", "Failed to generate payment address: ", err)
 			return err
 		}
 	} else {
@@ -195,7 +195,7 @@ func generateDelegationCertificate(filename string) error {
 		// cardano-cli conway stake-address stake-delegation-certificate --stake-verification-key-file stake.vkey --stake-pool-id pool17navl486tuwjg4t95vwtlqslx9225x5lguwuy6ahc58x5dnm9ma --out-file delegation.cert
 		_, err := Run(delegationArgs)
 		if err != nil {
-			logger.Record.Error("WALLET", "ERROR", "Failed to generate delegation certificate: ", err)
+			logger.Record.Error("WALLET", "Failed to generate delegation certificate: ", err)
 			return err
 		}
 	}
@@ -212,23 +212,23 @@ func LoadWallet(ID string) (*Wallet, error) {
 	
 	safePaymentKey, err := readAndEncryptKey(paymentKey)
 	if err != nil {
-		logger.Record.Error("WALLET", "ERROR", "Failed to read and encrypt payment key file: ", err)
+		logger.Record.Error("WALLET", "Failed to read and encrypt payment key file: ", err)
 		return nil, err
 	}
 
 	safeSigningPaymentKey, err := readAndEncryptKey(signingPaymentKey)
 	if err != nil {
-		logger.Record.Error("WALLET", "ERROR", "Failed to read and encrypt signing payment key file: ", err)
+		logger.Record.Error("WALLET", "Failed to read and encrypt signing payment key file: ", err)
 		return nil, err
 	}
 	safeStakeKey, err := readAndEncryptKey(stakeKey)
 	if err != nil {
-		logger.Record.Error("WALLET", "ERROR", "Failed to read and encrypt stake key file: ", err)
+		logger.Record.Error("WALLET", "Failed to read and encrypt stake key file: ", err)
 		return nil, err
 	}
 	safeSigningStakeKey, err := readAndEncryptKey(signingStakeKey)
 	if err != nil {
-		logger.Record.Error("WALLET", "ERROR", "Failed to read and encrypt signing stake key file: ", err)
+		logger.Record.Error("WALLET", "Failed to read and encrypt signing stake key file: ", err)
 		return nil, err
 	}
 
@@ -260,13 +260,13 @@ func readAndEncryptKey(keyPath string) (string, error) {
 	}
 	keyData, err := os.ReadFile(keyPath)
 	if err != nil {
-		logger.Record.Error("WALLET", "ERROR", "Failed to read key file: ", err)
+		logger.Record.Error("WALLET", "Failed to read key file: ", err)
 		return "", fmt.Errorf("failed to read key file: %s", err)
 	}
 
 	safeKey, err := db.Encrypt(string(keyData))
 	if err != nil {
-		logger.Record.Error("WALLET", "ERROR", "Failed to encrypt key: ", err)
+		logger.Record.Error("WALLET", "Failed to encrypt key: ", err)
 		return "", fmt.Errorf("failed to encrypt key: %s", err)
 	}
 
