@@ -1,6 +1,7 @@
 package cardano
 
 import (
+	"cardano-valley/pkg/logger"
 	"errors"
 	"fmt"
 	"os"
@@ -35,21 +36,27 @@ var (
  func GenerateWallet(ID string) (*Wallet, error) {
 	err := generatePaymentKey(ID)
 	if err != nil {
+		logger.Record.Error("WALLET", "ERROR", "Failed to generate payment key: %s", err)
 		return nil, err
 	}
 	err = generateStakeKey(ID)
 	if err != nil {
+		logger.Record.Error("WALLET", "ERROR", "Failed to generate stake key: %s", err)
 		return nil, err
 	}
 	err = generatePaymentAddress(ID)
 	if err != nil {
+		logger.Record.Error("WALLET", "ERROR", "Failed to generate payment address: %s", err)
 		return nil, err
 	}
 
 	wallet, err := LoadWallet(ID)
 	if err != nil {
+		logger.Record.Error("WALLET", "ERROR", "Failed to load wallet: %s", err)
 		return nil, err
 	}
+
+	logger.Record.Info("WALLET", "INFO", "Wallet generated successfully: %s", wallet.Address)
 
 	// // Encrypt and save the wallet to the db
 	// paymentKey, err := db.Encrypt(wallet.PaymentKey)
@@ -194,39 +201,49 @@ func LoadWallet(ID string) (*Wallet, error) {
 	address := fmt.Sprintf("%s.addr", ID)
 
 	if _, err := os.Stat(paymentKey); os.IsNotExist(err) {
-		return nil, errors.New(fmt.Sprintf("payment key file does not exist: %s", paymentKey))
+		logger.Record.Error("WALLET", "ERROR", "Payment key file does not exist: %s", paymentKey)
+		return nil, fmt.Errorf("payment key file does not exist: %s", paymentKey)
 	}
 	if _, err := os.Stat(signingPaymentKey); os.IsNotExist(err) {
-		return nil, errors.New(fmt.Sprintf("signing key file does not exist: %s", signingPaymentKey))
+		logger.Record.Error("WALLET", "ERROR", "Signing key file does not exist: %s", signingPaymentKey)
+		return nil, fmt.Errorf("signing key file does not exist: %s", signingPaymentKey)
 	}
 	if _, err := os.Stat(stakeKey); os.IsNotExist(err) {
-		return nil, errors.New(fmt.Sprintf("stake key file does not exist: %s", stakeKey))
+		logger.Record.Error("WALLET", "ERROR", "Stake key file does not exist: %s", stakeKey)
+		return nil, fmt.Errorf("stake key file does not exist: %s", stakeKey)
 	}
 	if _, err := os.Stat(signingStakeKey); os.IsNotExist(err) {
-		return nil, errors.New(fmt.Sprintf("signing stake key file does not exist: %s", signingStakeKey))
+		logger.Record.Error("WALLET", "ERROR", "Signing stake key file does not exist: %s", signingStakeKey)
+		return nil, fmt.Errorf("signing stake key file does not exist: %s", signingStakeKey)
 	}
 	if _, err := os.Stat(address); os.IsNotExist(err) {
-		return nil, errors.New(fmt.Sprintf("address file does not exist: %s", address))
+		logger.Record.Error("WALLET", "ERROR", "Address file does not exist: %s", address)
+		return nil, fmt.Errorf("address file does not exist: %s", address)
 	}
 	paymentKeyData, err := os.ReadFile(paymentKey)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("failed to read payment key file: %s", err))
+		logger.Record.Error("WALLET", "ERROR", "Failed to read payment key file: %s", err)
+		return nil, fmt.Errorf("failed to read payment key file: %s", err)
 	}
 	signingKeyData, err := os.ReadFile(signingPaymentKey)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("failed to read signing key file: %s", err))
+		logger.Record.Error("WALLET", "ERROR", "Failed to read signing key file: %s", err)
+		return nil, fmt.Errorf("failed to read signing key file: %s", err)
 	}
 	stakeKeyData, err := os.ReadFile(stakeKey)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("failed to read stake key file: %s", err))
+		logger.Record.Error("WALLET", "ERROR", "Failed to read stake key file: %s", err)
+		return nil, fmt.Errorf("failed to read stake key file: %s", err)
 	}
 	signingStakeKeyData, err := os.ReadFile(signingStakeKey)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("failed to read signing stake key file: %s", err))
+		logger.Record.Error("WALLET", "ERROR", "Failed to read signing stake key file: %s", err)
+		return nil, fmt.Errorf("failed to read signing stake key file: %s", err)
 	}
 	addressData, err := os.ReadFile(address)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("failed to read address file: %s", err))
+		logger.Record.Error("WALLET", "ERROR", "Failed to read address file: %s", err)
+		return nil, fmt.Errorf("failed to read address file: %s", err)
 	}
 
 	wallet := &Wallet{

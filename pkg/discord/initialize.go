@@ -2,11 +2,10 @@ package discord
 
 import (
 	"bytes"
-	"context"
 	"text/template"
-	"time"
 
 	"cardano-valley/pkg/cardano"
+	"cardano-valley/pkg/logger"
 	"cardano-valley/pkg/preeb"
 
 	"github.com/bwmarrin/discordgo"
@@ -20,10 +19,6 @@ var INITIALIZE_COMMAND = discordgo.ApplicationCommand{
 }
 
 var INITIALIZE_HANDLER = func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	ctx := context.Background()
-	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
-	defer cancel()
-
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
@@ -46,9 +41,13 @@ var INITIALIZE_HANDLER = func(s *discordgo.Session, i *discordgo.InteractionCrea
 		return
 	}
 
+	logger.Record.Info("WALLET", "INFO", "Wallet generated successfully: %s", wallet.Address)
+
 	config := preeb.LoadConfig(i.GuildID)
 	config.Wallet = *wallet
 	config.Save()
+
+	logger.Record.Info("WALLET", "CONFIG:", config)
 
 	content := "Your wallet has been successfully initialized. Here is the address:\n"
 	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
