@@ -9,6 +9,7 @@ import (
 type CommandArgs []string
 
 func Run(args CommandArgs) ([]byte, error) {
+	logger.Record.Info("CARDAGO", "PACKAGE", "CARDANO", "COMMAND", args)
 	output, err := exec.Command("/usr/local/bin/cardano-cli", args...).CombinedOutput()
 	if err != nil {
 		logger.Record.Error("CARDAGO", "PACKAGE", "CARDANO", "ERROR", err, "OUTPUT", string(output))

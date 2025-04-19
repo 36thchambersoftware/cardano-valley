@@ -37,7 +37,7 @@ var (
  * @return error If there was an error during the generation process.
  */
  func GenerateWallet(ID string) (*Wallet, error) {
-	logger.Record.Info("WALLET", "INFO", "Generate Wallet", "Checking if wallet exists...")
+	logger.Record.Info("WALLET", "INFO", "Checking if wallet exists...")
 	wallet, err := LoadWallet(ID)
 	if err == nil {
 		logger.Record.Info("WALLET", "INFO", "Wallet already exists:", wallet.Address)
@@ -255,6 +255,9 @@ func LoadWallet(ID string) (*Wallet, error) {
 }
 
 func readAndEncryptKey(keyPath string) (string, error) {
+	if _, err := os.Stat(keyPath); os.IsNotExist(err) {
+		return "", fmt.Errorf("key file does not exist: %s", keyPath)
+	}
 	keyData, err := os.ReadFile(keyPath)
 	if err != nil {
 		logger.Record.Error("WALLET", "ERROR", "Failed to read key file: ", err)
