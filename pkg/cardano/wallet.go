@@ -27,6 +27,8 @@ var (
 	StakeSigningKeySuffix = "_stake.skey"
 	AddressSuffix = ".addr"
 	DelegationCertificateSuffix = "_delegation.cert"
+
+	WALLET_EXISTS_ERROR = errors.New("Wallet already exists")
 )
 
 /**
@@ -37,11 +39,11 @@ var (
  * @return error If there was an error during the generation process.
  */
  func GenerateWallet(ID string) (*Wallet, error) {
-	logger.Record.Info("WALLET", "Checking if wallet exists...")
+	logger.Record.Info("WALLET", "Checking if wallet exists...", ID)
 	wallet, err := LoadWallet(ID)
 	if err == nil {
 		logger.Record.Info("WALLET", "Wallet already exists:", wallet.Address)
-		return wallet, nil
+		return wallet, errors.New(WALLET_EXISTS_ERROR.Error())
 	}
 
 	logger.Record.Info("WALLET", "Wallet does not exist", "Generating new wallet...")
@@ -76,7 +78,7 @@ var (
 		return nil, err
 	}
 
-	logger.Record.Info("WALLET", "Wallet generated successfully:", "ADDRESS", wallet.Address)
+	logger.Record.Info("WALLET", "Wallet generated successfully:", wallet.Address)
 
 	return wallet, nil
 }
@@ -232,14 +234,15 @@ func LoadWallet(ID string) (*Wallet, error) {
 		return nil, err
 	}
 
+	safeDelegationCert, err := readAndEncryptKey(delegationCert)
+	if err != nil {
+		logger.Record.Error("WALLET", "Failed to read and encrypt delegation certificate file: ", err)
+		return nil, err
+	}
+
 	addressData, err := os.ReadFile(address)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read address file: %s", err)
-	}
-
-	delegationCertData, err := os.ReadFile(delegationCert)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read delegation certificate file: %s", err)
 	}
 
 	wallet := &Wallet{
@@ -248,7 +251,7 @@ func LoadWallet(ID string) (*Wallet, error) {
 		SigningPaymentKey: 		string(safeSigningPaymentKey),
 		StakeKey:        		string(safeStakeKey),
 		SigningStakeKey: 		string(safeSigningStakeKey),
-		DelegationCertificate:  string(delegationCertData),
+		DelegationCertificate:  string(safeDelegationCert),
 	}
 
 	return wallet, nil

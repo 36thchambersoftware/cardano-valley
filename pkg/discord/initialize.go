@@ -2,6 +2,7 @@ package discord
 
 import (
 	"bytes"
+	"errors"
 	"text/template"
 
 	"cardano-valley/pkg/cardano"
@@ -29,14 +30,16 @@ var INITIALIZE_HANDLER = func(s *discordgo.Session, i *discordgo.InteractionCrea
 	})
 
 	wallet, err := cardano.GenerateWallet(i.GuildID)
-	if err != nil {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Title: "Initialization Error",
-				Content: "Error generating wallet: " + err.Error(),
-				Flags:   discordgo.MessageFlagsEphemeral,
-			},
+	if errors.Is(err, cardano.WALLET_EXISTS_ERROR) {
+		s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
+			Content: "This server has already been initialized",
+			Flags:   discordgo.MessageFlagsEphemeral,
+		})
+		return
+	} else if err != nil {
+		s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
+			Content: "Error generating wallet: " + err.Error(),
+			Flags:   discordgo.MessageFlagsEphemeral,
 		})
 		return
 	}
@@ -61,12 +64,8 @@ var INITIALIZE_HANDLER = func(s *discordgo.Session, i *discordgo.InteractionCrea
 
 	content = b.String()
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Title: "Initialization Complete",
-			Content: content,
-			Flags:   discordgo.MessageFlagsEphemeral,
-		},
+	s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
+		Content: content,
+		Flags:   discordgo.MessageFlagsEphemeral,
 	})
 }
