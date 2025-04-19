@@ -43,7 +43,7 @@ var (
 	wallet, err := LoadWallet(ID)
 	if err == nil {
 		logger.Record.Info("WALLET", "Wallet already exists:", wallet.Address)
-		return wallet, errors.New(WALLET_EXISTS_ERROR.Error())
+		return wallet, WALLET_EXISTS_ERROR
 	}
 
 	logger.Record.Info("WALLET", "Wallet does not exist", "Generating new wallet...")
