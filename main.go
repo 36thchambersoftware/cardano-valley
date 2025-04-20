@@ -34,10 +34,12 @@ var (
 
 	commands = []*discordgo.ApplicationCommand{
 		&discord.INITIALIZE_COMMAND,
+		&discord.REGISTER_COMMAND,
 	}
 
 	commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 		discord.INITIALIZE_COMMAND.Name:      		discord.INITIALIZE_HANDLER,
+		discord.REGISTER_COMMAND.Name:      		discord.REGISTER_HANDLER,
 	}
 	lockout         = make(map[string]struct{})
 	lockoutResponse = &discordgo.InteractionResponse{
@@ -97,7 +99,7 @@ func main() {
 				defer func() {
 					delete(lockout, i.Member.User.ID)
 				}()
-				
+
 				if _, err := CommandHistory.InsertOne(dbctx, Command{
 					Name:      i.ApplicationCommandData().Name,
 					Timestamp: time.Now(),

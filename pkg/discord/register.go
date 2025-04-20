@@ -12,28 +12,28 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-var INITIALIZE_COMMAND = discordgo.ApplicationCommand{
+var REGISTER_COMMAND = discordgo.ApplicationCommand{
 	Version:                  "0.01",
-	Name:                     "initialize",
-	Description:              "Initialize your server with a wallet and other configurations.",
+	Name:                     "register",
+	Description:              "Register with this server to participate in Cardano Valley.",
 	DefaultMemberPermissions: &ADMIN,
 }
 
-var INITIALIZE_HANDLER = func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+var REGISTER_HANDLER = func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Title: "Initialing...",
-			Content: "Please wait while we set up your server with a wallet and other configurations.",
+			Title: "Registering",
+			Content: "Please wait while we set up your wallet and other configurations.",
 			Flags:   discordgo.MessageFlagsEphemeral,
 		},
 	})
 
-	// Initialize the guild wallet
-	guildWallet, err := cardano.GenerateWallet(i.GuildID)
+	// Initialize the user wallet
+	userWallet, err := cardano.GenerateWallet(i.Member.User.ID)
 	if errors.Is(err, cardano.ERR_WALLET_EXISTS_ERROR) {
 		s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
-			Content: "This server has already been initialized. Here is the wallet address:\n" + guildWallet.Address,
+			Content: "Great news! You have already been registered. Here is your wallet address:\n" + userWallet.Address,
 			Flags:   discordgo.MessageFlagsEphemeral,
 		})
 		return
@@ -45,13 +45,13 @@ var INITIALIZE_HANDLER = func(s *discordgo.Session, i *discordgo.InteractionCrea
 		return
 	}
 
-	config := preeb.LoadConfig(i.GuildID)
-	config.Wallet = *guildWallet
-	config.Save()
+	user := preeb.LoadUser(i.Member.User.ID)
+	user.Wallet = *userWallet
+	user.Save()
 
-	logger.Record.Info("WALLET", "CONFIG:", config)
+	logger.Record.Info("WALLET", "USER: ", user)
 
-	content := "Your wallet has been successfully initialized. Here is the address:\n"
+	content := "Your wallet has been successfully created. Here is the address:\n"
 	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Content: &content,
 	})
@@ -60,7 +60,7 @@ var INITIALIZE_HANDLER = func(s *discordgo.Session, i *discordgo.InteractionCrea
 	sentence := "{{ .addr }}"
 	partial := template.Must(template.New("configure-policy-id-template").Parse(sentence))
 	partial.Execute(&b, map[string]interface{}{
-		"addr": guildWallet.Address,
+		"addr": userWallet.Address,
 	})
 
 	content = b.String()

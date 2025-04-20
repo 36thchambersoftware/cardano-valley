@@ -28,7 +28,7 @@ var (
 	AddressSuffix = ".addr"
 	DelegationCertificateSuffix = "_delegation.cert"
 
-	WALLET_EXISTS_ERROR = errors.New("Wallet already exists")
+	ERR_WALLET_EXISTS_ERROR = errors.New("Wallet already exists")
 )
 
 /**
@@ -43,7 +43,7 @@ var (
 	wallet, err := LoadWallet(ID)
 	if err == nil {
 		logger.Record.Info("WALLET", "Wallet already exists:", wallet.Address)
-		return wallet, WALLET_EXISTS_ERROR
+		return wallet, ERR_WALLET_EXISTS_ERROR
 	}
 
 	logger.Record.Info("WALLET", "Wallet does not exist", "Generating new wallet...")
