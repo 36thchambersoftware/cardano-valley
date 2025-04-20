@@ -139,7 +139,7 @@ func generateStakeKey(filename string) error {
 			return err
 		}
 	} else {
-		return errors.New("Stake key file already exists, skipping generation.")
+		return errors.New("stake key file already exists, skipping generation")
 	}
 
 	return nil
@@ -171,7 +171,7 @@ func generatePaymentAddress(filename string) (error) {
 			return err
 		}
 	} else {
-		return errors.New("Payment address file already exists, skipping generation.")
+		return errors.New("payment address file already exists, skipping generation")
 	}
 
 	return nil

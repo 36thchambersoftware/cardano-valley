@@ -29,7 +29,8 @@ var INITIALIZE_HANDLER = func(s *discordgo.Session, i *discordgo.InteractionCrea
 		},
 	})
 
-	wallet, err := cardano.GenerateWallet(i.GuildID)
+	// Initialize the guild wallet
+	guildWallet, err := cardano.GenerateWallet(i.GuildID)
 	if errors.Is(err, cardano.WALLET_EXISTS_ERROR) {
 		s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
 			Content: "This server has already been initialized",
@@ -45,7 +46,7 @@ var INITIALIZE_HANDLER = func(s *discordgo.Session, i *discordgo.InteractionCrea
 	}
 
 	config := preeb.LoadConfig(i.GuildID)
-	config.Wallet = *wallet
+	config.Wallet = *guildWallet
 	config.Save()
 
 	logger.Record.Info("WALLET", "CONFIG:", config)
@@ -59,7 +60,7 @@ var INITIALIZE_HANDLER = func(s *discordgo.Session, i *discordgo.InteractionCrea
 	sentence := "{{ .addr }}"
 	partial := template.Must(template.New("configure-policy-id-template").Parse(sentence))
 	partial.Execute(&b, map[string]interface{}{
-		"addr": wallet.Address,
+		"addr": guildWallet.Address,
 	})
 
 	content = b.String()
