@@ -1,4 +1,4 @@
-package preeb
+package cv
 
 import (
 	"cardano-valley/pkg/cardano"

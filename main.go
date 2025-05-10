@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
+	"text/template"
 	"time"
 
 	mongo "cardano-valley/pkg/db"
@@ -60,6 +62,19 @@ type (
 		ChannelID   string
 		Arguments   []*discordgo.ApplicationCommandInteractionDataOption `json:"options"`
 	}
+
+	Feature struct {
+		Icon string
+		Title string
+		Description string
+	}
+
+	PageData struct {
+		Title    string
+		Subtitle string
+		Features []Feature
+		Year     int
+	}
 )
 
 func init() {
@@ -79,6 +94,27 @@ func init() {
 func main() {
 	defer mongo.Close(mongo.DB, dbctx, dbcancel)
 	l := logger.Record
+
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		tmp := template.Must(template.ParseFiles("templates/index.html"))
+		data := PageData{
+			Title:    "FarmFi by Cardano Valley",
+			Subtitle: "Staking as a service. Built for meme coins, powered by Cardano.",
+			Features: []Feature{
+				{Icon: "🌾", Title: "Stake Pools", Description: "Launch farming for your meme coin with zero setup."},
+				{Icon: "📊", Title: "Yield Dashboard", Description: "Real-time earnings, staking stats, and visuals."},
+				{Icon: "🤝", Title: "Community Focus", Description: "Built with the community in mind, plug-and-play for any Discord."},
+			},
+			Year:     2025,
+		}
+		err := tmp.Execute(w, data)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	})
+
+	log.Println("Server started at http://localhost:8080")
+	http.ListenAndServe(":8080", nil)
 
 	// Setup discord
 	discord.S.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {

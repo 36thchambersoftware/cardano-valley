@@ -25,7 +25,7 @@ var (
 func init() {
 	key, ok := os.LookupEnv("CARDANO_VALLEY_CYPHER")
 	if !ok {
-		log.Fatalf("Missing token")
+		log.Fatalf("Missing CARDANO_VALLEY_CYPHER")
 	}
 	CARDANO_VALLEY_CYPHER = []byte(key)
 }

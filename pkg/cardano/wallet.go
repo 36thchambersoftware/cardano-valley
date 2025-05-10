@@ -6,6 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
+
+	cgo "github.com/echovl/cardano-go"
+	"github.com/echovl/cardano-go/crypto"
 )
 
 type (
@@ -20,16 +24,27 @@ type (
 )
 
 var (
-	KeyPrefix = "tmp/"
-	PaymentKeySuffix = ".vkey"
-	SigningKeySuffix = ".skey"
+	KeyPrefix = "wallets/"
+	PaymentKeySuffix = "_payment.vkey"
+	SigningKeySuffix = "_payment.skey"
 	StakeKeySuffix = "_stake.vkey"
 	StakeSigningKeySuffix = "_stake.skey"
 	AddressSuffix = ".addr"
 	DelegationCertificateSuffix = "_delegation.cert"
 
-	ERR_WALLET_EXISTS_ERROR = errors.New("Wallet already exists")
+	ErrWalletExists = errors.New("Wallet already exists")
+	ErrWalletDoesNotExist = errors.New("Wallet does not exist")
 )
+
+// cardano-cli query utxo --address addr1qy339ne5579p50ee62rpjrtw3khwxwjs7st0yz5dhhzl4lnr8c9t8cselvc44grattsfkemsvrjwrxp5mfevl7qn9s6qz80eg9
+// cardano-cli conway transaction build --tx-in c57f25ebf9cf1487b13deeb8449215c499f3d61c2836d84ab92a73b0bbaadd38#1 --tx-out $(< payment2.addr)+500000000 --change-address $(< payment.addr) --out-file tx.raw
+// cardano-cli conway transaction sign --tx-body-file tx.raw --signing-key-file payment.skey --out-file tx.signed
+// cardano-cli conway transaction submit --tx-file tx.signed
+
+func getFileName(userID string) string {
+	filename := path.Join(KeyPrefix, userID, userID)
+	return filename
+}
 
 /**
  * GenerateWallet generates a new wallet with the given ID.
@@ -43,7 +58,7 @@ var (
 	wallet, err := LoadWallet(ID)
 	if err == nil {
 		logger.Record.Info("WALLET", "Wallet already exists:", wallet.Address)
-		return wallet, ERR_WALLET_EXISTS_ERROR
+		return wallet, ErrWalletExists
 	}
 
 	logger.Record.Info("WALLET", "Wallet does not exist", "Generating new wallet...")
@@ -83,14 +98,11 @@ var (
 	return wallet, nil
 }
 
-func generatePaymentKey(filename string) error {
-	// Check if the payment key file already exists
-	// If it does, skip the generation
-	// If it doesn't, generate the payment key
-	paymentKey := fmt.Sprintf("%s%s%s", KeyPrefix, filename, PaymentKeySuffix)
+func generatePaymentKey(ID string) error {
+	paymentKey := path.Join(getFileName(ID), PaymentKeySuffix)
 	if _, err := os.Stat(paymentKey); os.IsNotExist(err) {
 		// Generate the payment keys
-		signingKey := fmt.Sprintf("%s%s%s", KeyPrefix, filename, SigningKeySuffix)
+		signingKey := path.Join(getFileName(ID), SigningKeySuffix)
 		paymentArgs := CommandArgs{
 			"address",
 			"key-gen",
@@ -100,7 +112,7 @@ func generatePaymentKey(filename string) error {
 			signingKey,
 		}
 
-		//cardano-cli address key-gen --verification-key-file payment.vkey --signing-key-file payment.skey
+		// cardano-cli address key-gen --verification-key-file payment.vkey --signing-key-file payment.skey
 		_, err := Run(paymentArgs)
 		if err != nil {
 			logger.Record.Error("WALLET", "Failed to generate payment key: ", err)
@@ -114,14 +126,11 @@ func generatePaymentKey(filename string) error {
 	return nil
 }
 
-func generateStakeKey(filename string) error {
-	// Check if the payment key file already exists
-	// If it does, skip the generation
-	// If it doesn't, generate the payment key
-	stakeKey := fmt.Sprintf("%s%s%s", KeyPrefix, filename, StakeKeySuffix)
+func generateStakeKey(ID string) error {
+	stakeKey := path.Join(getFileName(ID), StakeKeySuffix)
 	if _, err := os.Stat(stakeKey); os.IsNotExist(err) {
 		// Generate the stake keys
-		signingStakeKey := fmt.Sprintf("%s%s%s", KeyPrefix, filename, StakeSigningKeySuffix)
+		signingStakeKey := path.Join(getFileName(ID), StakeSigningKeySuffix)
 		stakeArgs := []string{
 			"conway",
 			"stake-address",
@@ -145,12 +154,11 @@ func generateStakeKey(filename string) error {
 	return nil
 }
 
-func generatePaymentAddress(filename string) (error) {
-	// Generate the stake keys
-	address := fmt.Sprintf("%s%s%s", KeyPrefix, filename, AddressSuffix)
+func generatePaymentAddress(ID string) (error) {
+	address := path.Join(getFileName(ID), AddressSuffix)
 	if _, err := os.Stat(address); os.IsNotExist(err) {
-		paymentKey := fmt.Sprintf("%s%s%s", KeyPrefix, filename, PaymentKeySuffix)
-		stakeKey := fmt.Sprintf("%s%s%s", KeyPrefix, filename, StakeKeySuffix)
+		paymentKey := path.Join(getFileName(ID), PaymentKeySuffix)
+		stakeKey := path.Join(getFileName(ID), StakeKeySuffix)
 		// Generate the payment address
 		addressArgs := []string{
 			"address",
@@ -177,9 +185,9 @@ func generatePaymentAddress(filename string) (error) {
 	return nil
 }
 
-func generateDelegationCertificate(filename string) error {
-	stakeKey := fmt.Sprintf("%s%s%s", KeyPrefix, filename, StakeKeySuffix)
-	delegationCert := fmt.Sprintf("%s%s%s", KeyPrefix, filename, DelegationCertificateSuffix)
+func generateDelegationCertificate(ID string) error {
+	stakeKey := path.Join(getFileName(ID), StakeKeySuffix)
+	delegationCert := path.Join(getFileName(ID), DelegationCertificateSuffix)
 	if _, err := os.Stat(delegationCert); os.IsNotExist(err) {
 		// Generate the delegation certificate
 		delegationArgs := []string{
@@ -274,4 +282,86 @@ func readAndEncryptKey(keyPath string) (string, error) {
 	}
 
 	return string(safeKey), nil
+}
+
+func SendAll(from, to, signingPaymentKey string) (*cardano.Hash32, error) {
+	protocolParams, err := Node.ProtocolParams()
+	if err != nil {
+		logger.Record.Error("WALLET", "Failed to get protocol parameters: ", err)
+		return nil, err
+	}
+
+	txBuilder := cardano.NewTxBuilder(protocolParams)
+
+	sender, err := cardano.NewAddress(from)
+	if err != nil {
+		logger.Record.Error("WALLET", "Failed to create sender address: ", err)
+		return nil, err
+	}
+	receiver, err := cardano.NewAddress(to)
+	if err != nil {
+		logger.Record.Error("WALLET", "Failed to create receiver address: ", err)
+		return nil, err
+	}
+	sk, err := crypto.NewPrvKey(signingPaymentKey)
+	if err != nil {
+		logger.Record.Error("WALLET", "Failed to create signing key: ", err)
+		return nil, err
+	}
+	txHash, err := cardano.NewHash32("txhash")
+	if err != nil {
+		logger.Record.Error("WALLET", "Failed to create transaction hash: ", err)
+		return nil, err
+	}
+
+	txInput := cardano.NewTxInput(txHash, 0, cardano.NewValue(20e6))
+	txOut := cardano.NewTxOutput(receiver, cardano.NewValue(10e6))
+
+	txBuilder.AddAuxiliaryData(&cardano.AuxiliaryData{
+		Metadata: cardano.Metadata{
+			0: map[string]interface{}{
+				"cardano-valley": "harvest",
+			},
+		},
+	})
+
+	txBuilder.AddInputs(txInput)
+	txBuilder.AddOutputs(txOut)
+	txBuilder.SetTTL(100000)
+	txBuilder.AddChangeIfNeeded(sender)
+	txBuilder.Sign(sk)
+
+	tx, err := txBuilder.Build()
+	if err != nil {
+		logger.Record.Error("WALLET", "Failed to build transaction: ", err)
+		return nil, err
+	}
+
+	signedHash, err := Node.SubmitTx(tx)
+	if err != nil {
+		logger.Record.Error("WALLET", "Failed to submit transaction: ", err)
+		return nil, err
+	}
+
+
+	return signedHash, nil
+}
+
+func getAddressUTXOs(address string) ([]byte, error) {
+	utxoArgs := []string{
+		"query",
+		"utxo",
+		"--address",
+		address,
+		"--mainnet",
+	}
+
+	// cardano-cli query utxo --address addr1qy339ne5579p50ee62rpjrtw3khwxwjs7st0yz5dhhzl4lnr8c9t8cselvc44grattsfkemsvrjwrxp5mfevl7qn9s6qz80eg9
+	utxoBytes, err := Run(utxoArgs)
+	if err != nil {
+		logger.Record.Error("WALLET", "Failed to get UTXOs: ", err)
+		return nil, err
+	}
+
+	return utxoBytes, nil
 }

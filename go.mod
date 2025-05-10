@@ -11,6 +11,8 @@ require (
 )
 
 require (
+	filippo.io/edwards25519 v1.0.0 // indirect
+	github.com/echovl/ed25519 v0.2.0 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/happy-sdk/happy/pkg/version v0.1.2 // indirect
@@ -20,6 +22,7 @@ require (
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/montanaflynn/stats v0.7.1 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
+	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.1.2 // indirect
 	github.com/xdg-go/stringprep v1.0.4 // indirect

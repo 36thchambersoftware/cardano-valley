@@ -1,4 +1,4 @@
-package preeb
+package cv
 
 import (
 	"cardano-valley/pkg/cardano"
@@ -100,3 +100,14 @@ func LoadUsers() Users {
 
 	return users
 }
+
+// func (u User) Send(to string, amount int) (string, error) {
+// 	if u.Wallet.PaymentKey == "" {
+// 		return "", cardano.ErrWalletDoesNotExist
+// 	}
+
+// 	signingPaymentKey, err := mongo.Decrypt(u.Wallet.SigningPaymentKey)
+
+// 	tx, err := cardano.SendAll(u.Wallet.Address, to, signingPaymentKey)
+// 	return tx.String(), err
+// }

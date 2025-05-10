@@ -17,7 +17,8 @@ import (
 var (
 	client         bfg.APIClient
 	APIQueryParams bfg.APIQueryParams
-	blockfrostProjectID string
+	BlockfrostProjectID string
+	TransactionID  bfg.Transaction
 )
 
 const (
@@ -32,27 +33,13 @@ type (
 	Ada      int
 )
 
-type AddressExtended struct {
-	Address      string   `json:"address,omitempty"`
-	Amount       []Amount `json:"amount,omitempty"`
-	StakeAddress string   `json:"stake_address,omitempty"`
-	Type         string   `json:"type,omitempty"`
-	Script       bool     `json:"script,omitempty"`
-}
-type Amount struct {
-	Unit                  string `json:"unit,omitempty"`
-	Quantity              string `json:"quantity,omitempty"`
-	Decimals              int    `json:"decimals,omitempty"`
-	HasNftOnchainMetadata bool   `json:"has_nft_onchain_metadata,omitempty"`
-}
-
 func loadBlockfrostProjectID() string {
-	blockfrostProjectID, ok := os.LookupEnv("BLOCKFROST_PROJECT_ID")
+	BlockfrostProjectID, ok := os.LookupEnv("BLOCKFROST_PROJECT_ID")
 	if !ok {
 		slog.Error("Could not get blockfrost project id")
 	}
 
-	return blockfrostProjectID
+	return BlockfrostProjectID
 }
 
 func init() {
