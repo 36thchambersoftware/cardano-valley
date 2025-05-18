@@ -4,11 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
 	"strings"
-	"text/template"
 	"time"
 
 	mongo "cardano-valley/pkg/db"
@@ -37,11 +35,13 @@ var (
 	commands = []*discordgo.ApplicationCommand{
 		&discord.INITIALIZE_COMMAND,
 		&discord.REGISTER_COMMAND,
+		&discord.LIST_SERVER_REWARDS_COMMAND,
 	}
 
 	commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 		discord.INITIALIZE_COMMAND.Name:      		discord.INITIALIZE_HANDLER,
 		discord.REGISTER_COMMAND.Name:      		discord.REGISTER_HANDLER,
+		discord.LIST_SERVER_REWARDS_COMMAND.Name: 	discord.LIST_SERVER_REWARDS_HANDLER,
 	}
 	lockout         = make(map[string]struct{})
 	lockoutResponse = &discordgo.InteractionResponse{
@@ -95,26 +95,26 @@ func main() {
 	defer mongo.Close(mongo.DB, dbctx, dbcancel)
 	l := logger.Record
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		tmp := template.Must(template.ParseFiles("templates/index.html"))
-		data := PageData{
-			Title:    "FarmFi by Cardano Valley",
-			Subtitle: "Staking as a service. Built for meme coins, powered by Cardano.",
-			Features: []Feature{
-				{Icon: "🌾", Title: "Stake Pools", Description: "Launch farming for your meme coin with zero setup."},
-				{Icon: "📊", Title: "Yield Dashboard", Description: "Real-time earnings, staking stats, and visuals."},
-				{Icon: "🤝", Title: "Community Focus", Description: "Built with the community in mind, plug-and-play for any Discord."},
-			},
-			Year:     2025,
-		}
-		err := tmp.Execute(w, data)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-	})
+	// http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	// 	tmp := template.Must(template.ParseFiles("templates/index.html"))
+	// 	data := PageData{
+	// 		Title:    "FarmFi by Cardano Valley",
+	// 		Subtitle: "Staking as a service. Built for meme coins, powered by Cardano.",
+	// 		Features: []Feature{
+	// 			{Icon: "🌾", Title: "Stake Pools", Description: "Launch farming for your meme coin with zero setup."},
+	// 			{Icon: "📊", Title: "Yield Dashboard", Description: "Real-time earnings, staking stats, and visuals."},
+	// 			{Icon: "🤝", Title: "Community Focus", Description: "Built with the community in mind, plug-and-play for any Discord."},
+	// 		},
+	// 		Year:     2025,
+	// 	}
+	// 	err := tmp.Execute(w, data)
+	// 	if err != nil {
+	// 		http.Error(w, err.Error(), http.StatusInternalServerError)
+	// 	}
+	// })
 
-	log.Println("Server started at http://localhost:8080")
-	http.ListenAndServe(":8080", nil)
+	// log.Println("Server started at http://localhost:8080")
+	// http.ListenAndServe(":8080", nil)
 
 	// Setup discord
 	discord.S.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {

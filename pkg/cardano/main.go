@@ -6,7 +6,13 @@ import (
 )
 
 
-type CommandArgs []string
+type (
+	CommandArgs []string
+)
+
+const (
+	NETWORK = "--mainnet"
+)
 
 func init() {
 	// // Check if cardano-cli is installed
@@ -23,7 +29,7 @@ func Run(args CommandArgs) ([]byte, error) {
 	if err != nil {
 		logger.Record.Error("CARDANO", "ERROR", err, "OUTPUT", string(output))
 	}
-	logger.Record.Debug("CARDANO", "OUTPUT", string(output))
+	logger.Record.Info("CARDANO", "OUTPUT", string(output))
 
 	return output, err
 }

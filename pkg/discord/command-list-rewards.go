@@ -1,0 +1,79 @@
+package discord
+
+import (
+	"cardano-valley/pkg/cv"
+	"fmt"
+	"strings"
+
+	"github.com/bwmarrin/discordgo"
+)
+
+var LIST_SERVER_REWARDS_COMMAND = discordgo.ApplicationCommand{
+	Name:        "list-server-rewards",
+	Description: "View all available staking rewards in this server",
+	Type:        discordgo.ChatApplicationCommand,
+}
+
+var LIST_SERVER_REWARDS_HANDLER = func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	config := cv.LoadConfig(i.GuildID)
+	if config.Rewards == nil {
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "Cardano Valley isn't setup on this server.",
+				Flags:  discordgo.MessageFlagsEphemeral,
+			},
+		})
+		return
+	}
+
+	var fields []*discordgo.MessageEmbedField
+
+	for _, reward := range config.Rewards {
+		freq := fmt.Sprintf("Every %d day(s)", reward.Frequency)
+		roles := strings.Join(reward.RolesEligible, ", ")
+		for _, r := range reward.RolesEligible {
+			roles = strings.ReplaceAll(roles, r, fmt.Sprintf("<@&%s>", r))
+		}
+
+		fields = append(fields, &discordgo.MessageEmbedField{
+			Name: reward.Name,
+			Value: fmt.Sprintf(
+				"**Type:** %s\n**Token:** `%s`\n**Amount:** %d\n**Hold ≥ %d day(s)**\n**Roles:** %s\n**Frequency:** %s",
+				strings.Title(reward.AssetType),
+				reward.RewardToken,
+				reward.AmountPerUser,
+				reward.MinHoldDays,
+				roles,
+				freq,
+			),
+			Inline: false,
+		})
+	}
+
+	guild, err := s.State.Guild(i.GuildID)
+	if err != nil {
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "Error fetching guild information.",
+				Flags:  discordgo.MessageFlagsEphemeral,
+			},
+		})
+		return
+	}
+
+	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Embeds: []*discordgo.MessageEmbed{
+				{
+					Title:       fmt.Sprintf("🎁 %s Rewards", guild.Name),
+					Description: "Here are the currently configured staking rewards:",
+					Fields:      fields,
+					Color:       0x00cc99,
+				},
+			},
+		},
+	})
+}

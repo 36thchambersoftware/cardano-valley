@@ -12,6 +12,51 @@ var DASHBOARD_COMMAND = discordgo.ApplicationCommand{
 }
 
 var DASHBOARD_HANDLER = func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	if i.GuildID == "" {
+		// For now, we only support guild-based commands
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "This command can only be used in a server for now.",
+				Flags:  discordgo.MessageFlagsEphemeral,
+			},
+		})
+		return
+	}
+
+	// config := cv.LoadConfig(i.GuildID)
+	// if config.Name == "" {
+	// 	// If the user is not in any of the guilds, send an error message
+	// 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	// 		Type: discordgo.InteractionResponseChannelMessageWithSource,
+	// 		Data: &discordgo.InteractionResponseData{
+	// 			Content: "Cardano Valley isn't setup on this server.",
+	// 			Flags:  discordgo.MessageFlagsEphemeral,
+	// 		},
+	// 	})
+	// 	return
+	// }
+
+	// TODO: Get the guild IDs associated with Cardano Valley
+	// TODO: Cross-reference the guild IDs to find the ones associated with Cardano Valley
+	
+	// If the user is in a guild, fetch the user's data from the database
+	user := cv.LoadUser(i.Member.User.ID)
+	if user.ID == "" {
+		// If the user is not found, send an error message
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: "You are not registered with Cardano Valley yet. Run `/register` to get started.",
+				Flags:  discordgo.MessageFlagsEphemeral,
+			},
+		})
+		return
+	}
+
+	// Calculate the user's total yield, staked amount, and leaderboard rank
+	
+
 	embed := &discordgo.MessageEmbed{
 		Title:       "🌾 Cardano Valley Dashboard",
 		Description: "Your farm overview",

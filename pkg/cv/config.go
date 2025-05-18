@@ -5,7 +5,6 @@ import (
 	mongo "cardano-valley/pkg/db"
 	"context"
 	"log"
-	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -15,27 +14,25 @@ type Configs []Config
 
 type (
 	Role string
-	Roles map[Role]PolicyIDs
-
+	Roles map[Role][]string // Map of role names to user IDs
 	Config struct {
-		GuildID         string      	`bson:"guild_id,omitempty"`
-		Roles 			Roles
-		Period 			time.Duration	`bson:"period,omitempty"`
-		Wallet          cardano.Wallet  `bson:"wallet,omitempty"`
+		GuildID         string      	 `bson:"guild_id,omitempty"`
+		Wallet          cardano.Wallet   `bson:"wallet,omitempty"`
+		Rewards     	[]Rewards        `json:"rewards,omitempty"`
 	}
 
-	Bounds struct {
-		Min 			Bound			`bson:"min,omitempty"`
-		Max 			Bound			`bson:"max,omitempty"`
-		Order 			int64			`bson:"order,omitempty"`
+	Rewards struct {
+		Name           string          `json:"name,omitempty"`
+		Description    string          `json:"description,omitempty"`
+		Icon           string          `json:"icon,omitempty"`       	 // URL to the icon
+		AssetType      string          `json:"assetType,omitempty"`  	 // "token" or "nft"
+		RewardToken    string          `json:"rewardToken,omitempty"`    // e.g., "abc123.PUNKS" <policyid.assetname>
+		AmountPerUser  uint64          `json:"amountPerUser,omitempty"`  // Amount of token per reward
+		RolesEligible  []string        `json:"rolesEligible,omitempty"`  // Discord role names or IDs
+		MinHoldDays    uint            `json:"minHoldDays,omitempty"`    // Minimum holding period
+		Frequency      uint       	   `json:"frequency,omitempty"`      // Frequency of rewards in days
 	}
 )
-
-func (bound Bounds) IsValid() bool {
-	return bound.Max > bound.Min
-}
-
-type Bound int64
 
 func (c Config) Save() interface{} {
 	collection := mongo.DB.Database("cardano-valley").Collection("config")
@@ -68,10 +65,6 @@ func LoadConfig(guild_id string) Config {
 
 	if config.GuildID == "" {
 		config.GuildID = guild_id
-	}
-
-	if config.Roles == nil {
-		config.Roles = make(Roles)
 	}
 
 	return config

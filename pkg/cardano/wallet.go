@@ -7,9 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-
-	cgo "github.com/echovl/cardano-go"
-	"github.com/echovl/cardano-go/crypto"
 )
 
 type (
@@ -282,86 +279,4 @@ func readAndEncryptKey(keyPath string) (string, error) {
 	}
 
 	return string(safeKey), nil
-}
-
-func SendAll(from, to, signingPaymentKey string) (*cardano.Hash32, error) {
-	protocolParams, err := Node.ProtocolParams()
-	if err != nil {
-		logger.Record.Error("WALLET", "Failed to get protocol parameters: ", err)
-		return nil, err
-	}
-
-	txBuilder := cardano.NewTxBuilder(protocolParams)
-
-	sender, err := cardano.NewAddress(from)
-	if err != nil {
-		logger.Record.Error("WALLET", "Failed to create sender address: ", err)
-		return nil, err
-	}
-	receiver, err := cardano.NewAddress(to)
-	if err != nil {
-		logger.Record.Error("WALLET", "Failed to create receiver address: ", err)
-		return nil, err
-	}
-	sk, err := crypto.NewPrvKey(signingPaymentKey)
-	if err != nil {
-		logger.Record.Error("WALLET", "Failed to create signing key: ", err)
-		return nil, err
-	}
-	txHash, err := cardano.NewHash32("txhash")
-	if err != nil {
-		logger.Record.Error("WALLET", "Failed to create transaction hash: ", err)
-		return nil, err
-	}
-
-	txInput := cardano.NewTxInput(txHash, 0, cardano.NewValue(20e6))
-	txOut := cardano.NewTxOutput(receiver, cardano.NewValue(10e6))
-
-	txBuilder.AddAuxiliaryData(&cardano.AuxiliaryData{
-		Metadata: cardano.Metadata{
-			0: map[string]interface{}{
-				"cardano-valley": "harvest",
-			},
-		},
-	})
-
-	txBuilder.AddInputs(txInput)
-	txBuilder.AddOutputs(txOut)
-	txBuilder.SetTTL(100000)
-	txBuilder.AddChangeIfNeeded(sender)
-	txBuilder.Sign(sk)
-
-	tx, err := txBuilder.Build()
-	if err != nil {
-		logger.Record.Error("WALLET", "Failed to build transaction: ", err)
-		return nil, err
-	}
-
-	signedHash, err := Node.SubmitTx(tx)
-	if err != nil {
-		logger.Record.Error("WALLET", "Failed to submit transaction: ", err)
-		return nil, err
-	}
-
-
-	return signedHash, nil
-}
-
-func getAddressUTXOs(address string) ([]byte, error) {
-	utxoArgs := []string{
-		"query",
-		"utxo",
-		"--address",
-		address,
-		"--mainnet",
-	}
-
-	// cardano-cli query utxo --address addr1qy339ne5579p50ee62rpjrtw3khwxwjs7st0yz5dhhzl4lnr8c9t8cselvc44grattsfkemsvrjwrxp5mfevl7qn9s6qz80eg9
-	utxoBytes, err := Run(utxoArgs)
-	if err != nil {
-		logger.Record.Error("WALLET", "Failed to get UTXOs: ", err)
-		return nil, err
-	}
-
-	return utxoBytes, nil
 }
