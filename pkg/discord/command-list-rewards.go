@@ -27,30 +27,6 @@ var LIST_SERVER_REWARDS_HANDLER = func(s *discordgo.Session, i *discordgo.Intera
 		return
 	}
 
-	var fields []*discordgo.MessageEmbedField
-
-	for _, reward := range config.Rewards {
-		freq := fmt.Sprintf("Every %d day(s)", reward.Frequency)
-		roles := strings.Join(reward.RolesEligible, ", ")
-		for _, r := range reward.RolesEligible {
-			roles = strings.ReplaceAll(roles, r, fmt.Sprintf("<@&%s>", r))
-		}
-
-		fields = append(fields, &discordgo.MessageEmbedField{
-			Name: reward.Name,
-			Value: fmt.Sprintf(
-				"**Type:** %s\n**Token:** `%s`\n**Amount:** %d\n**Hold ≥ %d day(s)**\n**Roles:** %s\n**Frequency:** %s",
-				strings.Title(reward.AssetType),
-				reward.RewardToken,
-				reward.AmountPerUser,
-				reward.MinHoldDays,
-				roles,
-				freq,
-			),
-			Inline: false,
-		})
-	}
-
 	guild, err := s.State.Guild(i.GuildID)
 	if err != nil {
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -63,17 +39,47 @@ var LIST_SERVER_REWARDS_HANDLER = func(s *discordgo.Session, i *discordgo.Intera
 		return
 	}
 
+	var embeds []*discordgo.MessageEmbed
+
+	for _, reward := range config.Rewards {
+		var fields []*discordgo.MessageEmbedField
+		freq := fmt.Sprintf("Every %d day(s)", reward.Frequency)
+		roles := strings.Join(reward.RolesEligible, ", ")
+		for _, r := range reward.RolesEligible {
+			roles = strings.ReplaceAll(roles, r, fmt.Sprintf("<@&%s>", r))
+		}
+
+		fields = append(fields, &discordgo.MessageEmbedField{
+			Name: reward.Name,
+			Value: fmt.Sprintf(
+				"**Type:** %s\n**Amount:** %d\n**Frequency:** %s\n**Can be withdrawn after %d day(s)**\n**Roles Eligible:** %s",
+				reward.AssetType,
+				reward.AmountPerUser,
+				freq,
+				reward.MinHoldDays,
+				roles,
+			),
+			Inline: false,
+		})
+
+		embeds = append(embeds, &discordgo.MessageEmbed{
+			Title:       fmt.Sprintf("🎁 %s Rewards", guild.Name),
+			Description: reward.Description,
+			Fields:      fields,
+			Footer: &discordgo.MessageEmbedFooter{
+				Text: fmt.Sprintf("Requested by %s", i.Member.User.Username),
+			},
+			Thumbnail: &discordgo.MessageEmbedThumbnail{
+				URL: reward.Icon,
+			},
+			Color:       0x00cc99,
+		})
+	}
+
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Embeds: []*discordgo.MessageEmbed{
-				{
-					Title:       fmt.Sprintf("🎁 %s Rewards", guild.Name),
-					Description: "Here are the currently configured staking rewards:",
-					Fields:      fields,
-					Color:       0x00cc99,
-				},
-			},
+			Embeds: embeds,
 		},
 	})
 }

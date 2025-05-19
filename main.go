@@ -87,8 +87,6 @@ func init() {
 	dbctx = ctx
 	dbcancel = cancel
 	mongo.DB = mdb
-
-	CommandHistory = mongo.DB.Database("cardano-valley").Collection("command-history")
 }
 
 func main() {
@@ -136,6 +134,7 @@ func main() {
 					delete(lockout, i.Member.User.ID)
 				}()
 
+				CommandHistory = mongo.DB.Database("cardano-valley").Collection("command-history")
 				if _, err := CommandHistory.InsertOne(dbctx, Command{
 					Name:      i.ApplicationCommandData().Name,
 					Timestamp: time.Now(),
@@ -144,7 +143,7 @@ func main() {
 					ChannelID: i.ChannelID,
 					Arguments: i.ApplicationCommandData().Options,
 				}); err != nil {
-					logger.Record.Error("Could not log command", "ERROR", err)
+					logger.Record.Error("Could not log command", "CTX", dbctx, "ERROR", err)
 				}
 				h(s, i)
 			} else {
