@@ -1,15 +1,19 @@
 package discord
 
 import (
+	"cardano-valley/pkg/cv"
+	"cardano-valley/pkg/logger"
 	"context"
 	"log"
-	"log/slog"
 	"net/url"
 	"os"
-	"strconv"
 	"time"
 
+	mongo "cardano-valley/pkg/db"
+
 	"github.com/bwmarrin/discordgo"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 var (
@@ -37,13 +41,10 @@ func initDiscord() {
 
 	RefreshCommands()
 
-	// ctx := context.Background()
+	ctx := context.Background()
 	LAST_UPDATE_TIME = make(map[string]int)
 
-	// go automaticRoleChecker(ctx)
-	// go automaticBuyNotifier(ctx)
-	// go automaticNftBuyNotifier(ctx)
-	// go automaticLaunchBuyNotifier(ctx)
+	go rewardUpdater(ctx)
 }
 
 func RefreshCommands() {
@@ -63,67 +64,56 @@ func RefreshCommands() {
 	}
 }
 
-func automaticRoleChecker(ctx context.Context) {
-	CARDANO_VALLEY_ROLE_CHECK_INTERVAL, ok := os.LookupEnv("CARDANO_VALLEY_ROLE_CHECK_INTERVAL")
-	if !ok {
-		slog.Error("Interval not set. Roles will not be updated.", "CARDANO_VALLEY_ROLE_CHECK_INTERVAL", CARDANO_VALLEY_ROLE_CHECK_INTERVAL)
-		return
-	}
-
-	interval, err := strconv.Atoi(CARDANO_VALLEY_ROLE_CHECK_INTERVAL)
-	if err != nil {
-		slog.Error("Could not read interval. Roles will not be updated.", "CARDANO_VALLEY_ROLE_CHECK_INTERVAL", CARDANO_VALLEY_ROLE_CHECK_INTERVAL)
-		return
-	}
+func rewardUpdater(ctx context.Context) {
+	// Connect to MongoDB
+	collection := mongo.DB.Database("cardano-valley").Collection("user")
 
 	for {
-        select {
-        case <-time.After(time.Duration(interval) * time.Minute):
-            slog.Info("Checking roles...")
-            // AutomaticRoleChecker()
-        case <-ctx.Done():
-			RefreshCommands()
-            return
-        }
-    }
-}
+		now := time.Now().UTC()
+		// Calculate next 0:00 UTC
+		next := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC).Add(24 * time.Hour)
+		time.Sleep(time.Until(next))
 
-func automaticBuyNotifier(ctx context.Context) {
-	for {
-		select {
-		case <-time.After(time.Minute):
-			slog.Info("Getting Buy Info")
-			// AutomaticBuyNotifier(ctx)
-		case <-ctx.Done():
-			return
+		// Get all guilds associated with Cardano Valley
+		configs := cv.LoadConfigs()
+
+		// Get all users associated with Cardano Valley
+		users := cv.LoadUsers()
+
+		for _, user := range users {
+			for _, config := range configs {
+				// Check if the user is in the guild
+				guild, err := S.Guild(config.GuildID)
+				if err != nil {
+					logger.Record.Warn("Failed to get guild", "GUILD", config.GuildID, "ERROR", err)
+					continue
+				}
+
+				member, err := S.GuildMember(config.GuildID, user.ID)
+				if err != nil {
+					logger.Record.Warn("Failed to get guild member", "GUILD", config.GuildID, "USER", user.ID, "ERROR", err)
+					continue
+				}
+
+				for _, reward := range config.Rewards {
+					matchingRoles := cv.SliceMatches(member.Roles, reward.RolesEligible)
+					// Check if user has a role associated with a reward
+					
+				}
+
+			}
+		}
+
+		filter := bson.M{"_id": rewardID}
+		update := bson.M{"$inc": bson.M{rewardFieldName: incrementValue}}
+		_, err := collection.UpdateOne(context.Background(), filter, update, options.Update().SetUpsert(true))
+		if err != nil {
+			log.Printf("Failed to increment reward: %v", err)
+		} else {
+			log.Printf("Reward incremented at %v", next)
 		}
 	}
 }
-
-func automaticNftBuyNotifier(ctx context.Context) {
-	for {
-		select {
-		case <-time.After(time.Minute):
-			slog.Info("Getting NFT Buy Info")
-			// AutomaticNFTBuyNotifier(ctx)
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
-// func automaticLaunchBuyNotifier(ctx context.Context) {
-// 	var lastHash string
-// 	for {
-// 		select {
-// 		case <-time.After(time.Minute):
-// 			slog.Info("Getting Buy Info")
-// 			lastHash = AutomaticLaunchBuyNotifier(ctx, lastHash)
-// 		case <-ctx.Done():
-// 			return
-// 		}
-// 	}
-// }
 
 func initWebhook() {
 	// DISCORD_WEBHOOK_URL

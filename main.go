@@ -36,12 +36,14 @@ var (
 		&discord.INITIALIZE_COMMAND,
 		&discord.REGISTER_COMMAND,
 		&discord.LIST_SERVER_REWARDS_COMMAND,
+		&discord.DASHBOARD_COMMAND,
 	}
 
 	commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 		discord.INITIALIZE_COMMAND.Name:      		discord.INITIALIZE_HANDLER,
 		discord.REGISTER_COMMAND.Name:      		discord.REGISTER_HANDLER,
 		discord.LIST_SERVER_REWARDS_COMMAND.Name: 	discord.LIST_SERVER_REWARDS_HANDLER,
+		discord.DASHBOARD_COMMAND.Name:      		discord.DASHBOARD_HANDLER,
 	}
 	lockout         = make(map[string]struct{})
 	lockoutResponse = &discordgo.InteractionResponse{
