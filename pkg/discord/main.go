@@ -9,11 +9,7 @@ import (
 	"os"
 	"time"
 
-	mongo "cardano-valley/pkg/db"
-
 	"github.com/bwmarrin/discordgo"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 var (
@@ -65,53 +61,58 @@ func RefreshCommands() {
 }
 
 func rewardUpdater(ctx context.Context) {
-	// Connect to MongoDB
-	collection := mongo.DB.Database("cardano-valley").Collection("user")
-
 	for {
 		now := time.Now().UTC()
 		// Calculate next 0:00 UTC
 		next := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC).Add(24 * time.Hour)
+		// next := now.Add(10*time.Second) // for testing
 		time.Sleep(time.Until(next))
 
+		logger.Record.Info("Updating rewards...")
 		// Get all guilds associated with Cardano Valley
+		var rewards []cv.Rewards
 		configs := cv.LoadConfigs()
+		for _, config := range configs {
+			rewards = append(rewards, config.Rewards...)
+		}
 
 		// Get all users associated with Cardano Valley
 		users := cv.LoadUsers()
 
+		rewardLog := logger.Record.WithGroup("CYCLE")
 		for _, user := range users {
+			userLog := rewardLog.With("USER", user.ID)
 			for _, config := range configs {
-				// Check if the user is in the guild
-				guild, err := S.Guild(config.GuildID)
-				if err != nil {
-					logger.Record.Warn("Failed to get guild", "GUILD", config.GuildID, "ERROR", err)
-					continue
-				}
-
+				guildLog := userLog.With("GUILD", config.GuildID)
 				member, err := S.GuildMember(config.GuildID, user.ID)
 				if err != nil {
-					logger.Record.Warn("Failed to get guild member", "GUILD", config.GuildID, "USER", user.ID, "ERROR", err)
+					guildLog.Warn("Failed to get guild member", "ERROR", err)
 					continue
 				}
 
-				for _, reward := range config.Rewards {
+				for _, reward := range rewards {
+					rewardLog := guildLog.With("REWARD", reward.Name)
 					matchingRoles := cv.SliceMatches(member.Roles, reward.RolesEligible)
 					// Check if user has a role associated with a reward
-					
+					if len(matchingRoles) > 0 {
+						// User is eligible for the reward!
+						rewardLog.Info("ELIGIBLE", "AMOUNT", reward.AmountPerUser)
+						user.Balance[reward.RewardToken] += reward.AmountPerUser
+					}
 				}
-
 			}
+
+			user.Save()
 		}
 
-		filter := bson.M{"_id": rewardID}
-		update := bson.M{"$inc": bson.M{rewardFieldName: incrementValue}}
-		_, err := collection.UpdateOne(context.Background(), filter, update, options.Update().SetUpsert(true))
-		if err != nil {
-			log.Printf("Failed to increment reward: %v", err)
-		} else {
-			log.Printf("Reward incremented at %v", next)
-		}
+		// filter := bson.M{"_id": rewardID}
+		// update := bson.M{"$inc": bson.M{rewardFieldName: incrementValue}}
+		// _, err := collection.UpdateOne(context.Background(), filter, update, options.Update().SetUpsert(true))
+		// if err != nil {
+		// 	log.Printf("Failed to increment reward: %v", err)
+		// } else {
+		// 	log.Printf("Reward incremented at %v", next)
+		// }
 	}
 }
 

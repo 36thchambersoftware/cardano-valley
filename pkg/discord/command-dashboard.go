@@ -55,18 +55,17 @@ var DASHBOARD_HANDLER = func(s *discordgo.Session, i *discordgo.InteractionCreat
 	}
 
 	// Calculate the user's total yield, staked amount, and leaderboard rank
-	
+	var fields []*discordgo.MessageEmbedField
+	for token, balance := range user.Balance {
+		fields = append(fields, &discordgo.MessageEmbedField{Name: string(token), Value: string(balance), Inline: true})
+	}
 
 	embed := &discordgo.MessageEmbed{
 		Title:       "🌾 Cardano Valley Dashboard",
 		Description: "Your farm overview",
 		Color:       0x00ff99,
-		Fields: []*discordgo.MessageEmbedField{
-			{Name: "Total Yield", Value: "1,234 $MEME", Inline: true},
-			{Name: "Staked Amount", Value: "5,000 $MEME", Inline: true},
-			{Name: "Leaderboard Rank", Value: "#7", Inline: true},
-		},
-		Thumbnail: &discordgo.MessageEmbedThumbnail{
+		Fields: 	 fields,
+		Thumbnail:   &discordgo.MessageEmbedThumbnail{
 			URL: cv.IconImage, // Replace with your icon
 		},
 		Footer: &discordgo.MessageEmbedFooter{

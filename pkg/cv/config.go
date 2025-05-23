@@ -26,12 +26,14 @@ type (
 		Description    string          `json:"description,omitempty"`
 		Icon           string          `json:"icon,omitempty"`       	 // URL to the icon
 		AssetType      string          `json:"assetType,omitempty"`  	 // "token" or "nft"
-		RewardToken    string          `json:"rewardToken,omitempty"`    // e.g., "abc123.PUNKS" <policyid.assetname>
+		RewardToken    Asset          `json:"rewardToken,omitempty"`    // e.g., "abc123.PUNKS" <policyid.assetname>
 		AmountPerUser  uint64          `json:"amountPerUser,omitempty"`  // Amount of token per reward
 		RolesEligible  []string        `json:"rolesEligible,omitempty"`  // Discord role names or IDs
 		MinHoldDays    uint            `json:"minHoldDays,omitempty"`    // Minimum holding period
 		Frequency      uint       	   `json:"frequency,omitempty"`      // Frequency of rewards in days
 	}
+
+	Asset string // policyid.assetname
 )
 
 func (c Config) Save() interface{} {

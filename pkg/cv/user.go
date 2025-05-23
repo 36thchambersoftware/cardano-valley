@@ -11,11 +11,15 @@ import (
 )
 
 type (
+	UsersMap map[string]User
 	Users []User
 	User struct {
 		ID string `json:"id,omitempty"`
 		Wallet cardano.Wallet `json:"wallet,omitempty"`
+		Balance Balance `json:"balance,omitempty"` // Map of asset names to balances
 	}
+
+	Balance map[Asset]uint64
 )
 
 /*
@@ -41,6 +45,10 @@ func LoadUser(userID string) User {
 	err := collection.FindOne(ctx, filter).Decode(&user)
 	if err != nil {
 		log.Printf("cannot find user: %v", err)
+	}
+
+	if user.Balance == nil {
+		user.Balance = make(Balance)
 	}
 
 	return user
@@ -84,6 +92,10 @@ func LoadUsers() Users {
 			var user User
 			if err := cursor.Decode(&user); err != nil {
 				log.Fatal(err)
+			}
+
+			if user.Balance == nil {
+				user.Balance = make(Balance)
 			}
 
 			users = append(users, user)
