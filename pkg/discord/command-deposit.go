@@ -7,6 +7,7 @@ import (
 )
 
 var DEPOSIT_COMMAND = discordgo.ApplicationCommand{
+	Version:     "0.01",
 	Name:        "deposit",
 	Description: "Get deposit instructions for your farm wallet.",
 }
@@ -31,5 +32,10 @@ var DEPOSIT_HANDLER = func(s *discordgo.Session, i *discordgo.InteractionCreate)
 			Content: msg,
 			Flags:   discordgo.MessageFlagsEphemeral,
 		},
+	})
+
+	s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
+		Content: config.Wallet.Address,
+		Flags:   discordgo.MessageFlagsEphemeral,
 	})
 }

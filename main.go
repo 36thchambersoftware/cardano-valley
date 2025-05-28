@@ -37,6 +37,9 @@ var (
 		&discord.REGISTER_COMMAND,
 		&discord.LIST_SERVER_REWARDS_COMMAND,
 		&discord.DASHBOARD_COMMAND,
+		&discord.DEPOSIT_COMMAND,
+		&discord.HELP_COMMAND,
+		&discord.CONFIGURE_REWARD_COMMAND,
 	}
 
 	commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
@@ -44,7 +47,19 @@ var (
 		discord.REGISTER_COMMAND.Name:      		discord.REGISTER_HANDLER,
 		discord.LIST_SERVER_REWARDS_COMMAND.Name: 	discord.LIST_SERVER_REWARDS_HANDLER,
 		discord.DASHBOARD_COMMAND.Name:      		discord.DASHBOARD_HANDLER,
+		discord.DEPOSIT_COMMAND.Name:      			discord.DEPOSIT_HANDLER,
+		discord.HELP_COMMAND.Name:      			discord.HELP_HANDLER,
+		discord.CONFIGURE_REWARD_COMMAND.Name:     discord.CONFIGURE_REWARD_HANDLER,
 	}
+
+	// Modal Handlers: Must be in this format! `name-of-modal` then finished with `_something`
+	modals = []string{
+		discord.CONFIGURE_REWARD_MODAL_NAME,
+	}
+	modalHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate, data discordgo.ModalSubmitInteractionData){
+		discord.CONFIGURE_REWARD_MODAL_NAME: discord.CONFIGURE_REWARD_MODAL_HANDLER,
+	}
+
 	lockout         = make(map[string]struct{})
 	lockoutResponse = &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -63,6 +78,15 @@ type (
 		GuildID     string
 		ChannelID   string
 		Arguments   []*discordgo.ApplicationCommandInteractionDataOption `json:"options"`
+	}
+
+	Modal struct {
+		Name        string
+		Timestamp   time.Time
+		UserID      string
+		GuildID     string
+		ChannelID   string
+		Arguments   []discordgo.MessageComponent `json:"options"`
 	}
 
 	Feature struct {
@@ -129,27 +153,69 @@ func main() {
 
 	// Setup Command Handler
 	discord.S.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		if h, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
-			if _, ok := lockout[i.Member.User.ID]; !ok {
-				lockout[i.Member.User.ID] = struct{}{}
-				defer func() {
-					delete(lockout, i.Member.User.ID)
-				}()
+		switch i.Type {
+		case discordgo.InteractionApplicationCommand:
+			if h, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
+				if _, ok := lockout[i.Member.User.ID]; !ok {
+					lockout[i.Member.User.ID] = struct{}{}
+					defer func() {
+						delete(lockout, i.Member.User.ID)
+					}()
 
-				CommandHistory = mongo.DB.Database("cardano-valley").Collection("command-history")
-				if _, err := CommandHistory.InsertOne(dbctx, Command{
-					Name:      i.ApplicationCommandData().Name,
+					CommandHistory = mongo.DB.Database("cardano-valley").Collection("command-history")
+					if _, err := CommandHistory.InsertOne(dbctx, Command{
+						Name:      i.ApplicationCommandData().Name,
+						Timestamp: time.Now(),
+						UserID:    i.Member.User.ID,
+						GuildID:   i.GuildID,
+						ChannelID: i.ChannelID,
+						Arguments: i.ApplicationCommandData().Options,
+					}); err != nil {
+						logger.Record.Error("Could not log command", "CTX", dbctx, "ERROR", err)
+					}
+					h(s, i)
+				} else {
+					s.InteractionRespond(i.Interaction, lockoutResponse)
+				}
+			}
+		case discordgo.InteractionModalSubmit:
+			err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: "Handling your input...",
+					Flags:   discordgo.MessageFlagsEphemeral,
+				},
+			})
+			if err != nil {
+				panic(err)
+			}
+			data := i.ModalSubmitData()
+
+			pieces := strings.Split(data.CustomID, "_")
+			if len(pieces) < 2 {
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: "Invalid modal name.",
+						Flags:   discordgo.MessageFlagsEphemeral,
+					},
+				})
+				return
+			}
+
+			if h, ok := modalHandlers[pieces[0]]; ok {
+				CommandHistory = mongo.DB.Database("cardano-valley").Collection("modal-history")
+				if _, err := CommandHistory.InsertOne(dbctx, Modal{
+					Name:      pieces[0],
 					Timestamp: time.Now(),
 					UserID:    i.Member.User.ID,
 					GuildID:   i.GuildID,
 					ChannelID: i.ChannelID,
-					Arguments: i.ApplicationCommandData().Options,
+					Arguments: data.Components,
 				}); err != nil {
-					logger.Record.Error("Could not log command", "CTX", dbctx, "ERROR", err)
+					logger.Record.Error("Could not log modal input", "CTX", dbctx, "ERROR", err)
 				}
-				h(s, i)
-			} else {
-				s.InteractionRespond(i.Interaction, lockoutResponse)
+				h(s, i, data)
 			}
 		}
 	})

@@ -104,15 +104,6 @@ func rewardUpdater(ctx context.Context) {
 
 			user.Save()
 		}
-
-		// filter := bson.M{"_id": rewardID}
-		// update := bson.M{"$inc": bson.M{rewardFieldName: incrementValue}}
-		// _, err := collection.UpdateOne(context.Background(), filter, update, options.Update().SetUpsert(true))
-		// if err != nil {
-		// 	log.Printf("Failed to increment reward: %v", err)
-		// } else {
-		// 	log.Printf("Reward incremented at %v", next)
-		// }
 	}
 }
 

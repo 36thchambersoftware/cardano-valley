@@ -29,8 +29,6 @@ type (
 		RewardToken    Asset          `json:"rewardToken,omitempty"`    // e.g., "abc123.PUNKS" <policyid.assetname>
 		AmountPerUser  uint64          `json:"amountPerUser,omitempty"`  // Amount of token per reward
 		RolesEligible  []string        `json:"rolesEligible,omitempty"`  // Discord role names or IDs
-		MinHoldDays    uint            `json:"minHoldDays,omitempty"`    // Minimum holding period
-		Frequency      uint       	   `json:"frequency,omitempty"`      // Frequency of rewards in days
 	}
 
 	Asset string // policyid.assetname

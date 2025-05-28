@@ -9,6 +9,7 @@ import (
 )
 
 var LIST_SERVER_REWARDS_COMMAND = discordgo.ApplicationCommand{
+	Version:     "0.01",
 	Name:        "list-server-rewards",
 	Description: "View all available staking rewards in this server",
 	Type:        discordgo.ChatApplicationCommand,
@@ -43,7 +44,6 @@ var LIST_SERVER_REWARDS_HANDLER = func(s *discordgo.Session, i *discordgo.Intera
 
 	for _, reward := range config.Rewards {
 		var fields []*discordgo.MessageEmbedField
-		freq := fmt.Sprintf("Every %d day(s)", reward.Frequency)
 		roles := strings.Join(reward.RolesEligible, ", ")
 		for _, r := range reward.RolesEligible {
 			roles = strings.ReplaceAll(roles, r, fmt.Sprintf("<@&%s>", r))
@@ -52,18 +52,16 @@ var LIST_SERVER_REWARDS_HANDLER = func(s *discordgo.Session, i *discordgo.Intera
 		fields = append(fields, &discordgo.MessageEmbedField{
 			Name: reward.Name,
 			Value: fmt.Sprintf(
-				"**Type:** %s\n**Amount:** %d\n**Frequency:** %s\n**Can be withdrawn after %d day(s)**\n**Roles Eligible:** %s",
+				"**Type:** %s\n**Amount:** %d\n**Frequency:** Daily\n**Roles Eligible:** %s",
 				reward.AssetType,
 				reward.AmountPerUser,
-				freq,
-				reward.MinHoldDays,
 				roles,
 			),
 			Inline: false,
 		})
 
 		embeds = append(embeds, &discordgo.MessageEmbed{
-			Title:       fmt.Sprintf("🎁 %s Rewards", guild.Name),
+			Title:       fmt.Sprintf("🌾 %s Rewards", guild.Name),
 			Description: reward.Description,
 			Fields:      fields,
 			Footer: &discordgo.MessageEmbedFooter{

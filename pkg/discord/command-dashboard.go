@@ -2,11 +2,16 @@ package discord
 
 import (
 	"cardano-valley/pkg/cv"
+	"encoding/hex"
+	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/bwmarrin/discordgo"
 )
 
 var DASHBOARD_COMMAND = discordgo.ApplicationCommand{
+	Version:     "0.01",
 	Name:        "dashboard",
 	Description: "View your staking dashboard.",
 }
@@ -57,7 +62,22 @@ var DASHBOARD_HANDLER = func(s *discordgo.Session, i *discordgo.InteractionCreat
 	// Calculate the user's total yield, staked amount, and leaderboard rank
 	var fields []*discordgo.MessageEmbedField
 	for token, balance := range user.Balance {
-		fields = append(fields, &discordgo.MessageEmbedField{Name: string(token), Value: string(balance), Inline: true})
+		value := strconv.Itoa(int(balance)) // Convert balance to string
+		tokenBits := strings.Split(string(token), ".")
+
+		var name []byte
+		if len(tokenBits) < 2 {
+			name = []byte(fmt.Sprintf("Unknown Token: %s", token))
+		} else {
+			// Decode the token name from hex
+			name = []byte(tokenBits[1]) // Use the second part as the name
+		}
+
+		name, err := hex.DecodeString(string(name))
+		if err != nil {
+			name = []byte(fmt.Sprintf("Unknown Token: %s", token))
+		}
+		fields = append(fields, &discordgo.MessageEmbedField{Name: string(name), Value: value, Inline: true})
 	}
 
 	embed := &discordgo.MessageEmbed{
