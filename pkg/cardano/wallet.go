@@ -22,12 +22,12 @@ type (
 
 var (
 	KeyPrefix = "wallets/"
-	PaymentKeySuffix = "_payment.vkey"
-	SigningKeySuffix = "_payment.skey"
-	StakeKeySuffix = "_stake.vkey"
-	StakeSigningKeySuffix = "_stake.skey"
+	PaymentKeySuffix = "payment.vkey"
+	SigningKeySuffix = "payment.skey"
+	StakeKeySuffix = "stake.vkey"
+	StakeSigningKeySuffix = "stake.skey"
 	AddressSuffix = ".addr"
-	DelegationCertificateSuffix = "_delegation.cert"
+	DelegationCertificateSuffix = "delegation.cert"
 
 	ErrWalletExists = errors.New("Wallet already exists")
 	ErrWalletDoesNotExist = errors.New("Wallet does not exist")
@@ -39,7 +39,7 @@ var (
 // cardano-cli conway transaction submit --tx-file tx.signed
 
 func getFileName(userID string) string {
-	filename := path.Join(KeyPrefix, userID, userID)
+	filename := path.Join(KeyPrefix, userID)
 	return filename
 }
 
@@ -59,6 +59,11 @@ func getFileName(userID string) string {
 	}
 
 	logger.Record.Info("WALLET", "Wallet does not exist", "Generating new wallet...")
+	err = os.MkdirAll(getFileName(ID), 0755)
+	if err != nil {
+		logger.Record.Error("WALLET", "Failed to create wallet directory: ", err)
+		return nil, fmt.Errorf("failed to create wallet directory: %w", err)
+	}
 	// If the wallet does not exist, proceed with generation
 	err = generatePaymentKey(ID)
 	if err != nil {
