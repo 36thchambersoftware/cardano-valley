@@ -45,6 +45,9 @@ var REGISTER_HANDLER = func(s *discordgo.Session, i *discordgo.InteractionCreate
 	}
 
 	user := cv.LoadUser(i.Member.User.ID)
+	if user.ID == "" {
+		user.ID = i.Member.User.ID
+	}
 	user.Wallet = *userWallet
 	user.Save()
 
