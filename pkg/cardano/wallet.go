@@ -38,8 +38,8 @@ var (
 // cardano-cli conway transaction sign --tx-body-file tx.raw --signing-key-file payment.skey --out-file tx.signed
 // cardano-cli conway transaction submit --tx-file tx.signed
 
-func getFileName(userID string) string {
-	filename := path.Join(KeyPrefix, userID, userID)
+func getFileName(userID, suffix string) string {
+	filename := path.Join(KeyPrefix, userID, userID + suffix)
 	return filename
 }
 
@@ -51,7 +51,7 @@ func getFileName(userID string) string {
  * @return error If there was an error during the generation process.
  */
  func GenerateWallet(ID string) (*Wallet, error) {
-	logger.Record.Info("WALLET", "Checking if wallet exists...", path.Join(getFileName(ID), PaymentKeySuffix))
+	logger.Record.Info("WALLET", "Checking if wallet exists...", getFileName(ID, PaymentKeySuffix))
 	wallet, err := LoadWallet(ID)
 	if err == nil {
 		logger.Record.Info("WALLET", "Wallet already exists:", wallet.Address)
@@ -59,7 +59,7 @@ func getFileName(userID string) string {
 	}
 
 	logger.Record.Info("WALLET", "Wallet does not exist", "Generating new wallet...")
-	err = os.MkdirAll(getFileName(ID), 0755)
+	err = os.MkdirAll(getFileName(ID, ""), 0755)
 	if err != nil {
 		logger.Record.Error("WALLET", "Failed to create wallet directory: ", err)
 		return nil, fmt.Errorf("failed to create wallet directory: %w", err)
@@ -101,11 +101,11 @@ func getFileName(userID string) string {
 }
 
 func generatePaymentKey(ID string) error {
-	paymentKey := path.Join(getFileName(ID), PaymentKeySuffix)
+	paymentKey := getFileName(ID, PaymentKeySuffix)
 	logger.Record.Info("WALLET", "Trying to generate payment key:", paymentKey)
 	if _, err := os.Stat(paymentKey); os.IsNotExist(err) {
 		// Generate the payment keys
-		signingKey := path.Join(getFileName(ID), SigningKeySuffix)
+		signingKey := getFileName(ID, SigningKeySuffix)
 		paymentArgs := CommandArgs{
 			"address",
 			"key-gen",
@@ -130,10 +130,10 @@ func generatePaymentKey(ID string) error {
 }
 
 func generateStakeKey(ID string) error {
-	stakeKey := path.Join(getFileName(ID), StakeKeySuffix)
+	stakeKey := getFileName(ID, StakeKeySuffix)
 	if _, err := os.Stat(stakeKey); os.IsNotExist(err) {
 		// Generate the stake keys
-		signingStakeKey := path.Join(getFileName(ID), StakeSigningKeySuffix)
+		signingStakeKey := getFileName(ID, StakeSigningKeySuffix)
 		stakeArgs := []string{
 			"conway",
 			"stake-address",
@@ -158,10 +158,10 @@ func generateStakeKey(ID string) error {
 }
 
 func generatePaymentAddress(ID string) (error) {
-	address := path.Join(getFileName(ID), AddressSuffix)
+	address := getFileName(ID, AddressSuffix)
 	if _, err := os.Stat(address); os.IsNotExist(err) {
-		paymentKey := path.Join(getFileName(ID), PaymentKeySuffix)
-		stakeKey := path.Join(getFileName(ID), StakeKeySuffix)
+		paymentKey := getFileName(ID, PaymentKeySuffix)
+		stakeKey := getFileName(ID, StakeKeySuffix)
 		// Generate the payment address
 		addressArgs := []string{
 			"address",
@@ -189,8 +189,8 @@ func generatePaymentAddress(ID string) (error) {
 }
 
 func generateDelegationCertificate(ID string) error {
-	stakeKey := path.Join(getFileName(ID), StakeKeySuffix)
-	delegationCert := path.Join(getFileName(ID), DelegationCertificateSuffix)
+	stakeKey := getFileName(ID, StakeKeySuffix)
+	delegationCert := getFileName(ID, DelegationCertificateSuffix)
 	if _, err := os.Stat(delegationCert); os.IsNotExist(err) {
 		// Generate the delegation certificate
 		delegationArgs := []string{
@@ -216,12 +216,12 @@ func generateDelegationCertificate(ID string) error {
 }
 
 func LoadWallet(ID string) (*Wallet, error) {
-	paymentKey := fmt.Sprintf("%s%s%s", KeyPrefix, ID, PaymentKeySuffix)
-	signingPaymentKey := fmt.Sprintf("%s%s%s", KeyPrefix, ID, SigningKeySuffix)
-	stakeKey := fmt.Sprintf("%s%s%s", KeyPrefix, ID, StakeKeySuffix)
-	signingStakeKey := fmt.Sprintf("%s%s%s", KeyPrefix, ID, StakeSigningKeySuffix)
-	address := fmt.Sprintf("%s%s%s", KeyPrefix, ID, AddressSuffix)
-	delegationCert := fmt.Sprintf("%s%s%s", KeyPrefix, ID, DelegationCertificateSuffix)
+	paymentKey := getFileName(ID, PaymentKeySuffix)
+	signingPaymentKey := getFileName(ID, SigningKeySuffix)
+	stakeKey := getFileName(ID, StakeKeySuffix)
+	signingStakeKey := getFileName(ID, StakeSigningKeySuffix)
+	address := getFileName(ID, AddressSuffix)
+	delegationCert := getFileName(ID, DelegationCertificateSuffix)
 	
 	safePaymentKey, err := readAndEncryptKey(paymentKey)
 	if err != nil {
