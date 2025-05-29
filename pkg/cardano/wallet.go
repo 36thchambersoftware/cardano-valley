@@ -51,7 +51,7 @@ func getFileName(userID string) string {
  * @return error If there was an error during the generation process.
  */
  func GenerateWallet(ID string) (*Wallet, error) {
-	logger.Record.Info("WALLET", "Checking if wallet exists...", ID)
+	logger.Record.Info("WALLET", "Checking if wallet exists...", getFileName(ID))
 	wallet, err := LoadWallet(ID)
 	if err == nil {
 		logger.Record.Info("WALLET", "Wallet already exists:", wallet.Address)
@@ -102,6 +102,7 @@ func getFileName(userID string) string {
 
 func generatePaymentKey(ID string) error {
 	paymentKey := path.Join(getFileName(ID), PaymentKeySuffix)
+	logger.Record.Info("WALLET", "Trying to generate payment key:", paymentKey)
 	if _, err := os.Stat(paymentKey); os.IsNotExist(err) {
 		// Generate the payment keys
 		signingKey := path.Join(getFileName(ID), SigningKeySuffix)
