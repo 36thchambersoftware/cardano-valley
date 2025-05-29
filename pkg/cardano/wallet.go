@@ -22,12 +22,12 @@ type (
 
 var (
 	KeyPrefix = "wallets/"
-	PaymentKeySuffix = "payment.vkey"
-	SigningKeySuffix = "payment.skey"
-	StakeKeySuffix = "stake.vkey"
-	StakeSigningKeySuffix = "stake.skey"
+	PaymentKeySuffix = "_payment.vkey"
+	SigningKeySuffix = "_payment.skey"
+	StakeKeySuffix = "_stake.vkey"
+	StakeSigningKeySuffix = "_stake.skey"
 	AddressSuffix = ".addr"
-	DelegationCertificateSuffix = "delegation.cert"
+	DelegationCertificateSuffix = "_delegation.cert"
 
 	ErrWalletExists = errors.New("Wallet already exists")
 	ErrWalletDoesNotExist = errors.New("Wallet does not exist")
@@ -39,7 +39,7 @@ var (
 // cardano-cli conway transaction submit --tx-file tx.signed
 
 func getFileName(userID string) string {
-	filename := path.Join(KeyPrefix, userID)
+	filename := path.Join(KeyPrefix, userID, userID)
 	return filename
 }
 
