@@ -16,7 +16,6 @@ var REGISTER_COMMAND = discordgo.ApplicationCommand{
 	Version:                  "0.01",
 	Name:                     "register",
 	Description:              "Register with this server to participate in Cardano Valley.",
-	DefaultMemberPermissions: &ADMIN,
 }
 
 var REGISTER_HANDLER = func(s *discordgo.Session, i *discordgo.InteractionCreate) {

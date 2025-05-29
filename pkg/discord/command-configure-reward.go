@@ -60,6 +60,4 @@ var CONFIGURE_REWARD_MODAL_HANDLER = func(s *discordgo.Session, i *discordgo.Int
 	s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Content: &content,
 	})
-	return
-
 }
