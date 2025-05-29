@@ -5,7 +5,7 @@
 buildProd:
 	sudo systemctl stop cardano-valley.service
 	cd ~/git/cardano-valley
-	rm /usr/local/bin/cardano-valley
+	sudo rm /usr/local/bin/cardano-valley
 	rm cardano-valley
 	go build -o cardano-valley
 	sudo cp -p cardano-valley /usr/local/bin/.
