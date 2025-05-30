@@ -153,6 +153,9 @@ func main() {
 
 	// Setup Command Handler
 	discord.S.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
+		defer cancel()
+
 		switch i.Type {
 		case discordgo.InteractionApplicationCommand:
 			if h, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
@@ -163,7 +166,7 @@ func main() {
 					}()
 
 					CommandHistory = mongo.DB.Database("cardano-valley").Collection("command-history")
-					if _, err := CommandHistory.InsertOne(dbctx, Command{
+					if _, err := CommandHistory.InsertOne(ctx, Command{
 						Name:      i.ApplicationCommandData().Name,
 						Timestamp: time.Now(),
 						UserID:    i.Member.User.ID,
@@ -205,7 +208,7 @@ func main() {
 
 			if h, ok := modalHandlers[pieces[0]]; ok {
 				CommandHistory = mongo.DB.Database("cardano-valley").Collection("modal-history")
-				if _, err := CommandHistory.InsertOne(dbctx, Modal{
+				if _, err := CommandHistory.InsertOne(ctx, Modal{
 					Name:      pieces[0],
 					Timestamp: time.Now(),
 					UserID:    i.Member.User.ID,
