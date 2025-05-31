@@ -4,6 +4,7 @@ import (
 	"cardano-valley/pkg/cv"
 	"encoding/hex"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -61,8 +62,15 @@ var DASHBOARD_HANDLER = func(s *discordgo.Session, i *discordgo.InteractionCreat
 
 	// Calculate the user's total yield, staked amount, and leaderboard rank
 	var fields []*discordgo.MessageEmbedField
-	for token, balance := range user.Balance {
-		value := strconv.Itoa(int(balance)) // Convert balance to string
+	var keys []string
+	for key := range user.Balance {
+		keys = append(keys, string(key))
+	}
+
+	sort.Strings(keys)
+
+	for _, token := range keys {
+		value := strconv.Itoa(int(user.Balance[cv.Asset(token)])) // Convert balance to string
 		tokenBits := strings.Split(string(token), ".")
 
 		var name []byte
@@ -82,14 +90,14 @@ var DASHBOARD_HANDLER = func(s *discordgo.Session, i *discordgo.InteractionCreat
 
 	embed := &discordgo.MessageEmbed{
 		Title:       "🌾 Cardano Valley Dashboard",
-		Description: "Your farm overview",
+		Description: fmt.Sprintf("Your farm overview\nAddress: %s", user.Wallet.Address),
 		Color:       0x00ff99,
 		Fields: 	 fields,
 		Thumbnail:   &discordgo.MessageEmbedThumbnail{
 			URL: cv.IconImage, // Replace with your icon
 		},
 		Footer: &discordgo.MessageEmbedFooter{
-			Text: "Updated just now",
+			Text: "Your farm is growing!",
 		},
 	}
 
