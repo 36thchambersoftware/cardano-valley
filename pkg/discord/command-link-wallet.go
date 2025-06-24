@@ -20,7 +20,6 @@ var (
 		Version:                  "0.01",
 		Name:                     "link-wallet",
 		Description:              "Link your Cardano wallet to your Discord account.",
-		DefaultMemberPermissions: &ADMIN,
 	}
 
 	LINK_WALLET_MODAL_NAME = "link-wallet"
