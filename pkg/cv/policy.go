@@ -9,4 +9,6 @@ type (
 
 	// String here being the policy id
 	PolicyIDs map[PolicyID]Policy
+
+	Asset string // policyid.assetname
 )

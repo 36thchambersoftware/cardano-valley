@@ -40,6 +40,7 @@ var (
 		&discord.DEPOSIT_COMMAND,
 		&discord.HELP_COMMAND,
 		&discord.CONFIGURE_REWARD_COMMAND,
+		&discord.LINK_WALLET_COMMAND,
 	}
 
 	commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
@@ -50,14 +51,24 @@ var (
 		discord.DEPOSIT_COMMAND.Name:      			discord.DEPOSIT_HANDLER,
 		discord.HELP_COMMAND.Name:      			discord.HELP_HANDLER,
 		discord.CONFIGURE_REWARD_COMMAND.Name:     discord.CONFIGURE_REWARD_HANDLER,
+		discord.LINK_WALLET_COMMAND.Name:          discord.LINK_WALLET_HANDLER,
 	}
 
 	// Modal Handlers: Must be in this format! `name-of-modal` then finished with `_something`
 	modals = []string{
-		discord.CONFIGURE_REWARD_MODAL_NAME,
+		discord.CONFIGURE_REWARD_NAME_MODAL_NAME,
+		discord.LINK_WALLET_MODAL_NAME,
 	}
 	modalHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate, data discordgo.ModalSubmitInteractionData){
-		discord.CONFIGURE_REWARD_MODAL_NAME: discord.CONFIGURE_REWARD_MODAL_HANDLER,
+		discord.CONFIGURE_REWARD_NAME_MODAL_NAME: discord.CONFIGURE_REWARD_NAME_MODAL_HANDLER,
+		discord.LINK_WALLET_MODAL_NAME:            discord.LINK_WALLET_MODAL_HANDLER,
+	}
+
+	components = []string{
+		discord.CONFIGURE_REWARD_ASSET_COMPONENT_NAME,
+	}
+	componentHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate, selected discordgo.MessageComponentInteractionData){
+		discord.CONFIGURE_REWARD_ASSET_COMPONENT_NAME: discord.CONFIGURE_REWARD_ASSET_COMPONENT_HANDLER,
 	}
 
 	lockout         = make(map[string]struct{})
@@ -77,16 +88,7 @@ type (
 		UserID      string
 		GuildID     string
 		ChannelID   string
-		Arguments   []*discordgo.ApplicationCommandInteractionDataOption `json:"options"`
-	}
-
-	Modal struct {
-		Name        string
-		Timestamp   time.Time
-		UserID      string
-		GuildID     string
-		ChannelID   string
-		Arguments   []discordgo.MessageComponent `json:"options"`
+		Arguments   []discord.Args `json:"options"`
 	}
 
 	Feature struct {
@@ -153,11 +155,10 @@ func main() {
 
 	// Setup Command Handler
 	discord.S.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
-		defer cancel()
-
 		switch i.Type {
 		case discordgo.InteractionApplicationCommand:
+			ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
+			defer cancel()
 			if h, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
 				if _, ok := lockout[i.Member.User.ID]; !ok {
 					lockout[i.Member.User.ID] = struct{}{}
@@ -172,7 +173,7 @@ func main() {
 						UserID:    i.Member.User.ID,
 						GuildID:   i.GuildID,
 						ChannelID: i.ChannelID,
-						Arguments: i.ApplicationCommandData().Options,
+						Arguments: discord.ExtractArgsFromSlash(i.ApplicationCommandData()),
 					}); err != nil {
 						logger.Record.Error("Could not log command", "CTX", dbctx, "ERROR", err)
 					}
@@ -182,41 +183,60 @@ func main() {
 				}
 			}
 		case discordgo.InteractionModalSubmit:
-			err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Content: "Handling your input...",
-					Flags:   discordgo.MessageFlagsEphemeral,
-				},
-			})
-			if err != nil {
-				panic(err)
-			}
+			ctx, cancel := context.WithTimeout(context.Background(), 60 * time.Second)
+			defer cancel()
+
 			data := i.ModalSubmitData()
 
 			pieces := strings.Split(data.CustomID, "_")
 			if len(pieces) < 2 {
-				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionResponseChannelMessageWithSource,
-					Data: &discordgo.InteractionResponseData{
-						Content: "Invalid modal name.",
-						Flags:   discordgo.MessageFlagsEphemeral,
-					},
+				content := "Invalid modal name format. Expected format: `name_of_modal_userid`."
+				s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+					Content: &content,
 				})
 				return
 			}
 
 			if h, ok := modalHandlers[pieces[0]]; ok {
 				CommandHistory = mongo.DB.Database("cardano-valley").Collection("modal-history")
-				if _, err := CommandHistory.InsertOne(ctx, Modal{
+				if _, err := CommandHistory.InsertOne(ctx, Command{
 					Name:      pieces[0],
 					Timestamp: time.Now(),
 					UserID:    i.Member.User.ID,
 					GuildID:   i.GuildID,
 					ChannelID: i.ChannelID,
-					Arguments: data.Components,
+					Arguments: discord.ExtractArgsFromModal(i.ModalSubmitData()),
 				}); err != nil {
 					logger.Record.Error("Could not log modal input", "CTX", dbctx, "ERROR", err)
+				}
+				h(s, i, data)
+			}
+		case discordgo.InteractionMessageComponent:
+			ctx, cancel := context.WithTimeout(context.Background(), 60 * time.Second)
+			defer cancel()
+			
+			data := i.MessageComponentData()
+
+			pieces := strings.Split(data.CustomID, "_")
+			if len(pieces) < 2 {
+				content := "Invalid modal name format. Expected format: `name_of_modal_userid`."
+				s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+					Content: &content,
+				})
+				return
+			}
+
+			if h, ok := componentHandlers[pieces[0]]; ok {
+				CommandHistory = mongo.DB.Database("cardano-valley").Collection("component-history")
+				if _, err := CommandHistory.InsertOne(ctx, Command{
+					Name:      pieces[0],
+					Timestamp: time.Now(),
+					UserID:    i.Member.User.ID,
+					GuildID:   i.GuildID,
+					ChannelID: i.ChannelID,
+					Arguments: discord.ExtractArgsFromSelect(data),
+				}); err != nil {
+					logger.Record.Error("Could not log component interaction", "CTX", dbctx, "ERROR", err)
 				}
 				h(s, i, data)
 			}

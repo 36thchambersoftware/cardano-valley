@@ -1,6 +1,10 @@
 package blockfrost
 
-import "context"
+import (
+	"context"
+
+	"github.com/blockfrost/blockfrost-go"
+)
 
 type AddressExtended struct {
 	Address      string   `json:"address,omitempty"`
@@ -17,4 +21,13 @@ func VerifyAddress(ctx context.Context, address string) (bool) {
 	}
 
 	return true
+}
+
+func GetAddress(ctx context.Context, address string) (blockfrost.Address, error) {
+	addr, err := client.Address(ctx, address)
+	if err != nil {
+		return blockfrost.Address{}, err
+	}
+
+	return addr, nil
 }

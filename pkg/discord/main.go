@@ -1,3 +1,4 @@
+// Package discord provides Discord bot command handlers and utilities for Cardano Valley.
 package discord
 
 import (
@@ -15,7 +16,6 @@ import (
 var (
 	S                   *discordgo.Session
 	DISCORD_WEBHOOK_URL string
-	LAST_UPDATE_TIME    map[string]int
 	ADMIN int64 = discordgo.PermissionAdministrator
 )
 
@@ -38,23 +38,22 @@ func initDiscord() {
 	RefreshCommands()
 
 	ctx := context.Background()
-	LAST_UPDATE_TIME = make(map[string]int)
 
 	go rewardUpdater(ctx)
 }
 
 func RefreshCommands() {
-	appId, ok := os.LookupEnv("CARDANO_VALLEY_APPLICATION_ID")
+	appID, ok := os.LookupEnv("CARDANO_VALLEY_APPLICATION_ID")
 	if !ok {
 		log.Fatalf("Missing application id")
 	}
-	registeredCommands, err := S.ApplicationCommands(appId, "")
+	registeredCommands, err := S.ApplicationCommands(appID, "")
 	if err != nil {
 		log.Panicf("Cannot retrieve commands:\n%v", err)
 	}
 
 	guildID := ""
-	_, err = S.ApplicationCommandBulkOverwrite(appId, guildID, registeredCommands)
+	_, err = S.ApplicationCommandBulkOverwrite(appID, guildID, registeredCommands)
 	if err != nil {
 		log.Panicf("Cannot overwrite commands:\n%v", err)
 	}

@@ -17,9 +17,14 @@ type (
 		ID string `json:"id,omitempty"`
 		Wallet cardano.Wallet `json:"wallet,omitempty"`
 		Balance Balance `json:"balance,omitempty"` // Map of asset names to balances
+		LinkedWallets []Address `json:"linked_wallets,omitempty"` // List of linked wallets
 	}
 
 	Balance map[Asset]uint64
+	Address struct {
+		Payment string `json:"payment,omitempty"` // Payment address
+		Stake string `json:"stake,omitempty"` // Stake address
+	}
 )
 
 /*
