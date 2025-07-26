@@ -8,6 +8,13 @@ import (
 
 type (
 	CommandArgs []string
+	Holder struct {
+		Address string `json:"address,omitempty"` // Address of the holder
+		Quantity uint64 `json:"quantity,omitempty"` // Quantity of the asset held
+	}
+	
+	Asset string // policyid.assetname
+	Assets []Asset
 )
 
 const (

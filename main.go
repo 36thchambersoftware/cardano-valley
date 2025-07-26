@@ -41,6 +41,7 @@ var (
 		&discord.HELP_COMMAND,
 		&discord.CONFIGURE_REWARD_COMMAND,
 		&discord.LINK_WALLET_COMMAND,
+		&discord.WITHDRAW_COMMAND,
 	}
 
 	commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
@@ -52,6 +53,7 @@ var (
 		discord.HELP_COMMAND.Name:      			discord.HELP_HANDLER,
 		discord.CONFIGURE_REWARD_COMMAND.Name:     discord.CONFIGURE_REWARD_HANDLER,
 		discord.LINK_WALLET_COMMAND.Name:          discord.LINK_WALLET_HANDLER,
+		discord.WITHDRAW_COMMAND.Name:             discord.WITHDRAW_HANDLER,
 	}
 
 	// Modal Handlers: Must be in this format! `name-of-modal` then finished with `_something`
@@ -66,9 +68,11 @@ var (
 
 	components = []string{
 		discord.CONFIGURE_REWARD_ASSET_COMPONENT_NAME,
+		discord.WITHDRAW_COMMAND_OPTIONLIST_NAME,
 	}
 	componentHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate, selected discordgo.MessageComponentInteractionData){
 		discord.CONFIGURE_REWARD_ASSET_COMPONENT_NAME: discord.CONFIGURE_REWARD_ASSET_COMPONENT_HANDLER,
+		discord.WITHDRAW_COMMAND_OPTIONLIST_NAME:      discord.WITHDRAW_COMMAND_OPTIONLIST_HANDLER,
 	}
 
 	lockout         = make(map[string]struct{})

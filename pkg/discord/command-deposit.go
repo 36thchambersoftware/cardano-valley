@@ -38,16 +38,4 @@ var DEPOSIT_HANDLER = func(s *discordgo.Session, i *discordgo.InteractionCreate)
 		Content: config.Wallet.Address,
 		Flags:   discordgo.MessageFlagsEphemeral,
 	})
-
-
-	s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
-		Content: "You can also use the following QR code to deposit tokens into your farm wallet:",
-		Flags:   discordgo.MessageFlagsEphemeral,
-		Embeds: []*discordgo.MessageEmbed{
-			{
-				Title:       "Deposit Address",
-				Description: "Use this address to deposit tokens into your farm wallet.",
-			},
-		},
-	})
 }

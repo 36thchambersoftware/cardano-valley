@@ -41,3 +41,15 @@ func SliceMatches[T constraints.Ordered](listA []T, listB []T) []T {
 
 	return sames
 }
+
+func TruncateMiddle(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+
+	// Reserve characters for the beginning and end
+	startLen := (max - 3) / 2
+	endLen := max - 3 - startLen
+
+	return s[:startLen] + "..." + s[len(s)-endLen:]
+}

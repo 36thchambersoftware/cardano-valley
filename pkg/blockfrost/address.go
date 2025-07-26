@@ -14,13 +14,9 @@ type AddressExtended struct {
 	Script       bool     `json:"script,omitempty"`
 }
 
-func VerifyAddress(ctx context.Context, address string) (bool) {
+func VerifyAddress(ctx context.Context, address string) bool {
 	_, err := client.Address(ctx, address)
-	if err != nil {
-		return false
-	}
-
-	return true
+	return err == nil
 }
 
 func GetAddress(ctx context.Context, address string) (blockfrost.Address, error) {

@@ -3,27 +3,31 @@ package cv
 import (
 	"cardano-valley/pkg/cardano"
 	mongo "cardano-valley/pkg/db"
+	"cardano-valley/pkg/logger"
 	"context"
 	"log"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type (
-	UsersMap map[string]User
 	Users []User
 	User struct {
-		ID string `json:"id,omitempty"`
-		Wallet cardano.Wallet `json:"wallet,omitempty"`
-		Balance Balance `json:"balance,omitempty"` // Map of asset names to balances
-		LinkedWallets []Address `json:"linked_wallets,omitempty"` // List of linked wallets
+		ID            string         `json:"id,omitempty"`
+		Wallet        cardano.Keys   `json:"wallet,omitempty"`
+		LinkedWallets []Wallet      `json:"linked_wallets,omitempty"` // List of linked wallets
+		Rewards       map[ServerID]Balance `json:"rewards"`
+	}
+	Wallet struct {
+		Payment string `json:"payment,omitempty"`
+		Stake   string `json:"stake,omitempty"`
 	}
 
-	Balance map[Asset]uint64
-	Address struct {
-		Payment string `json:"payment,omitempty"` // Payment address
-		Stake string `json:"stake,omitempty"` // Stake address
+	Balance map[Asset]struct {
+		Earned       uint64    `json:"earned"`
+		LastClaimed  time.Time `json:"last_claimed"`
 	}
 )
 
@@ -52,8 +56,8 @@ func LoadUser(userID string) User {
 		log.Printf("cannot find user: %v", err)
 	}
 
-	if user.Balance == nil {
-		user.Balance = make(Balance)
+	if user.Rewards == nil {
+		user.Rewards = make(map[ServerID]Balance)
 	}
 
 	return user
@@ -99,8 +103,8 @@ func LoadUsers() Users {
 				log.Fatal(err)
 			}
 
-			if user.Balance == nil {
-				user.Balance = make(Balance)
+			if user.Rewards == nil {
+				user.Rewards = make(map[ServerID]Balance)
 			}
 
 			users = append(users, user)
@@ -118,13 +122,23 @@ func LoadUsers() Users {
 	return users
 }
 
-// func (u User) Send(to string, amount int) (string, error) {
-// 	if u.Wallet.PaymentKey == "" {
-// 		return "", cardano.ErrWalletDoesNotExist
-// 	}
+func (u User) HarvestRewards(changeAddr string) error {
+	// This function should implement the logic to harvest rewards for the user
+	// For now, we will just log the action
+	logger.Record.Info("Harvesting rewards", "userID", u.ID, "address", changeAddr)
 
-// 	signingPaymentKey, err := mongo.Decrypt(u.Wallet.SigningPaymentKey)
+	txOutMap := make(cardano.TxOutMap)
 
-// 	tx, err := cardano.SendAll(u.Wallet.Address, to, signingPaymentKey)
-// 	return tx.String(), err
-// }
+	for serverID, reward := range u.Rewards {
+		for asset, balance := range reward {
+			txOutMap[string(serverID)] = struct{Asset cardano.Asset; Amount uint64}{
+				Asset: cardano.Asset(asset),
+				Amount: balance.Earned,
+			}
+		}
+	}
+
+	cardano.BuildTxFromBalance(changeAddr, txOutMap)
+
+	return nil
+}

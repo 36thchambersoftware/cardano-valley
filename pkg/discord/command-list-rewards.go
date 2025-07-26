@@ -54,7 +54,7 @@ var LIST_SERVER_REWARDS_HANDLER = func(s *discordgo.Session, i *discordgo.Intera
 			Value: fmt.Sprintf(
 				"**Type:** %s\n**Amount:** %d\n**Frequency:** Daily\n**Roles Eligible:** %s",
 				reward.AssetType,
-				reward.AmountPerUser,
+				reward.RoleAmount,
 				roles,
 			),
 			Inline: false,

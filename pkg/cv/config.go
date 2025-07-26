@@ -13,13 +13,14 @@ import (
 type Configs []Config
 
 type (
-	Role string
-	Roles map[Role][]string // Map of role names to user IDs
 	Config struct {
-		GuildID         string      	 `bson:"guild_id,omitempty"`
-		Wallet          cardano.Wallet   `bson:"wallet,omitempty"`
-		Rewards     	[]Rewards        `json:"rewards,omitempty"`
+		GuildID         ServerID       `bson:"guild_id,omitempty"`
+		Name 		    string         `bson:"name,omitempty"` // Name of the server
+		Wallet          cardano.Keys   `bson:"wallet,omitempty"`
+		Rewards     	[]Reward       `json:"rewards,omitempty"`
 	}
+
+	ServerID string
 )
 
 func (c Config) Save() interface{} {
@@ -52,7 +53,7 @@ func LoadConfig(guild_id string) Config {
 	}
 
 	if config.GuildID == "" {
-		config.GuildID = guild_id
+		config.GuildID = ServerID(guild_id)
 	}
 
 	return config

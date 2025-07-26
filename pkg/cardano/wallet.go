@@ -10,7 +10,7 @@ import (
 )
 
 type (
-	Wallet struct {
+	Keys struct {
 		Address string `bson:"address,omitempty"`
 		PaymentKey string `bson:"payment_key,omitempty"`
 		SigningPaymentKey string `bson:"signing_payment_key,omitempty"`
@@ -50,7 +50,7 @@ func getFileName(userID, suffix string) string {
  * @param ID The Discord GuildID or the UserID of the wallet to generate.
  * @return error If there was an error during the generation process.
  */
- func GenerateWallet(ID string) (*Wallet, error) {
+ func GenerateWallet(ID string) (*Keys, error) {
 	logger.Record.Info("WALLET", "Checking if wallet exists...", getFileName(ID, PaymentKeySuffix))
 	wallet, err := LoadWallet(ID)
 	if err == nil {
@@ -215,7 +215,7 @@ func generateDelegationCertificate(ID string) error {
 	return nil
 }
 
-func LoadWallet(ID string) (*Wallet, error) {
+func LoadWallet(ID string) (*Keys, error) {
 	paymentKey := getFileName(ID, PaymentKeySuffix)
 	signingPaymentKey := getFileName(ID, SigningKeySuffix)
 	stakeKey := getFileName(ID, StakeKeySuffix)
@@ -256,7 +256,7 @@ func LoadWallet(ID string) (*Wallet, error) {
 		return nil, fmt.Errorf("failed to read address file: %s", err)
 	}
 
-	wallet := &Wallet{
+	wallet := &Keys{
 		Address:         		string(addressData),
 		PaymentKey:      		string(safePaymentKey),
 		SigningPaymentKey: 		string(safeSigningPaymentKey),

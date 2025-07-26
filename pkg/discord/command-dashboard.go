@@ -4,8 +4,6 @@ import (
 	"cardano-valley/pkg/cv"
 	"encoding/hex"
 	"fmt"
-	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
@@ -14,7 +12,7 @@ import (
 var DASHBOARD_COMMAND = discordgo.ApplicationCommand{
 	Version:     "0.01",
 	Name:        "dashboard",
-	Description: "View your staking dashboard.",
+	Description: "View your staking dashboard and wallets.",
 }
 
 var DASHBOARD_HANDLER = func(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -62,35 +60,39 @@ var DASHBOARD_HANDLER = func(s *discordgo.Session, i *discordgo.InteractionCreat
 
 	// Calculate the user's total yield, staked amount, and leaderboard rank
 	var fields []*discordgo.MessageEmbedField
-	var keys []string
-	for key := range user.Balance {
-		keys = append(keys, string(key))
+
+	for _, reward := range user.Rewards {
+		for asset, balance := range reward {
+			tokenBits := strings.Split(string(asset), ".")
+
+			var name []byte
+			if len(tokenBits) < 2 {
+				name = []byte(fmt.Sprintf("Unknown Token: %s", asset))
+			} else {
+				// Decode the token name from hex
+				name = []byte(tokenBits[1]) // Use the second part as the name
+			}
+
+			name, err := hex.DecodeString(string(name))
+			if err != nil {
+				name = []byte(fmt.Sprintf("Unknown Token: %s", asset))
+			}
+
+			value := fmt.Sprintf("%d", balance.Earned)
+			fields = append(fields, &discordgo.MessageEmbedField{Name: string(name), Value: value, Inline: true})
+		}
 	}
 
-	sort.Strings(keys)
-
-	for _, token := range keys {
-		value := strconv.Itoa(int(user.Balance[cv.Asset(token)])) // Convert balance to string
-		tokenBits := strings.Split(string(token), ".")
-
-		var name []byte
-		if len(tokenBits) < 2 {
-			name = []byte(fmt.Sprintf("Unknown Token: %s", token))
-		} else {
-			// Decode the token name from hex
-			name = []byte(tokenBits[1]) // Use the second part as the name
-		}
-
-		name, err := hex.DecodeString(string(name))
-		if err != nil {
-			name = []byte(fmt.Sprintf("Unknown Token: %s", token))
-		}
-		fields = append(fields, &discordgo.MessageEmbedField{Name: string(name), Value: value, Inline: true})
+	var wallets []string
+	for _, wallet := range user.LinkedWallets {
+		wallets = append(wallets, fmt.Sprintf("1. %s", cv.TruncateMiddle(wallet.Payment, 32)))
 	}
+	walletList := strings.Join(wallets, "\n")
+	fields = append(fields, &discordgo.MessageEmbedField{Name: fmt.Sprintf("Linked Wallets (%d)", len(wallets)), Value: walletList, Inline: false})
 
 	embed := &discordgo.MessageEmbed{
 		Title:       "🌾 Cardano Valley Dashboard",
-		Description: fmt.Sprintf("Your farm overview\nAddress: %s", user.Wallet.Address),
+		Description: fmt.Sprintf("Your farm overview\nCardano Valley Deposit Address: %s", user.Wallet.Address),
 		Color:       0x00ff99,
 		Fields: 	 fields,
 		Thumbnail:   &discordgo.MessageEmbedThumbnail{

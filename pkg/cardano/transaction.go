@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
+	"os/exec"
 	"sort"
 	"strings"
 )
@@ -90,19 +93,26 @@ import (
 // 	return utxoBytes, nil
 // }
 
-type UTxOValue map[string]map[string]uint64
+type (
+    UTxOValue map[string]map[string]uint64
 
-type UTxOEntry struct {
-	Address           string     `json:"address"`
-	Datum             any        `json:"datum"`
-	DatumHash         any        `json:"datumhash"`
-	InlineDatum       any        `json:"inlineDatum"`
-	InlineDatumRaw    any        `json:"inlineDatumRaw"`
-	ReferenceScript   any        `json:"referenceScript"`
-	Value             UTxOValue  `json:"value"`
-}
+    UTxOEntry struct {
+		Address           string     `json:"address"`
+		Datum             any        `json:"datum"`
+		DatumHash         any        `json:"datumhash"`
+		InlineDatum       any        `json:"inlineDatum"`
+		InlineDatumRaw    any        `json:"inlineDatumRaw"`
+		ReferenceScript   any        `json:"referenceScript"`
+		Value             UTxOValue  `json:"value"`
+	}
 
-type UTxOMap map[string]UTxOEntry
+ 	UTxOMap map[string]UTxOEntry
+
+	TxOutMap map[string]struct{
+		Asset Asset
+		Amount uint64
+	}
+)
 
 func QueryUTxOJson(addr string) (UTxOMap, error) {
 	tmp := "utxos.json"
@@ -326,4 +336,137 @@ func ExampleSendTxWithAssets(fromAddr, toAddress, changeAddress, skeyPath string
 	}
 
 	return nil
+}
+
+
+// Mirrors the airdrop functionality from lookout-below
+func BuildTxAdaOnly(changeAddr string, holders []Holder, adaPerNFT uint64) error {
+	txOuts := []string{}
+	for _, h := range holders {
+		total := adaPerNFT * h.Quantity
+		slog.Default().Info("Calculating transaction output",
+			"holder_address", h.Address,
+			"nft_count", h.Quantity,
+			"ada_per_nft", adaPerNFT,
+			"total_ada", total,
+		)
+		txOuts = append(txOuts, "--tx-out", fmt.Sprintf("%s+%d", h.Address, total))
+	}
+
+	// 1. Query UTXOs in JSON format
+	utxoCmd := exec.Command("cardano-cli", "query", "utxo",
+		"--address", changeAddr,
+		"--mainnet",
+		"--out-file", "/dev/stdout",
+		"--output-json",
+	)
+
+	utxoOutput, err := utxoCmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to query UTXOs: %w", err)
+	}
+
+	// 2. Parse JSON into map
+	var utxos UTxOMap
+	if err := json.Unmarshal(utxoOutput, &utxos); err != nil {
+		return fmt.Errorf("failed to parse UTXO JSON: %w", err)
+	}
+
+	// 3. Construct --tx-in arguments
+	txIns := []string{}
+	for utxo := range utxos {
+		// key is like "txhash#txix"
+		txIns = append(txIns, "--tx-in", utxo)
+	}
+	if len(txIns) == 0 {
+		return fmt.Errorf("no UTXOs found at address %s", changeAddr)
+	}
+
+	slog.Default().Info("Building transaction",
+		"wallet_address", changeAddr,
+		"holders_count", len(holders),
+		"ada_per_nft", adaPerNFT,
+		"txOuts", txOuts,
+	)
+
+	// 4. Build full CLI command
+	args := append([]string{
+		"conway", "transaction", "build",
+		"--mainnet",
+		"--change-address", changeAddr,
+		"--out-file", "airdrop-tx.raw",
+	}, append(txIns, txOuts...)...)
+
+	slog.Default().Info("Executing cardano-cli command", "args", args)
+
+	cmd := exec.Command("cardano-cli", args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return cmd.Run()
+}
+
+
+func BuildTxFromBalance(to string, assets TxOutMap) error {
+	txOuts := []string{}
+	for asset, amount := range assets {
+		slog.Default().Info("Calculating transaction output",
+			"asset", asset,
+			"amount", amount,
+		)
+		//--tx-out addr_test1vp6jz+"1000 11375f8ee31c280e1f2ec6fe11a73bca79d7a6a64f18e1e6980f0c74.637573746f6d636f696e"
+		txOuts = append(txOuts, "--tx-out", fmt.Sprintf("%s+\"%d %s\"", to, amount, asset))
+	}
+
+	// 1. Query UTXOs in JSON format
+	utxoCmd := exec.Command("cardano-cli", "query", "utxo",
+		"--address", to,
+		"--mainnet",
+		"--out-file", "/dev/stdout",
+		"--output-json",
+	)
+
+	utxoOutput, err := utxoCmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to query UTXOs: %w", err)
+	}
+
+	// 2. Parse JSON into map
+	var utxos UTxOMap
+	if err := json.Unmarshal(utxoOutput, &utxos); err != nil {
+		return fmt.Errorf("failed to parse UTXO JSON: %w", err)
+	}
+
+	// 3. Construct --tx-in arguments
+	txIns := []string{}
+	for utxo := range utxos {
+		// key is like "txhash#txix"
+		txIns = append(txIns, "--tx-in", utxo)
+	}
+	if len(txIns) == 0 {
+		return fmt.Errorf("no UTXOs found at address %s", to)
+	}
+
+	// slog.Default().Info("Building transaction",
+	// 	"wallet_address", to,
+	// 	"holders_count", len(holders),
+	// 	"ada_per_nft", adaPerNFT,
+	// 	"txOuts", txOuts,
+	// )
+
+	// 4. Build full CLI command
+	args := append([]string{
+		"conway", "transaction", "build",
+		"--mainnet",
+		"--change-address", to,
+		"--out-file", "airdrop-tx.raw",
+	}, append(txIns, txOuts...)...)
+
+	slog.Default().Info("Executing cardano-cli command", "args", args)
+
+	cmd := exec.Command("cardano-cli", args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return cmd.Run()
 }

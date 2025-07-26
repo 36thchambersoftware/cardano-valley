@@ -118,18 +118,32 @@ var (
 		}
 
 		user := cv.LoadUser(i.Member.User.ID)
-		user.LinkedWallets = append(user.LinkedWallets, cv.Address{
-			Payment: address.Address,
-			Stake:   *address.StakeAddress,
-		})
-		user.Save()
+		var content string
+		var walletExists bool
+		for _, wallet := range user.LinkedWallets {
+			if wallet.Payment == address.Address {
+				walletExists = true
+			}
+		}
 
-		content := ""
-		if len(handles) > 0 {
-			content = fmt.Sprintf("Your wallet has been linked successfully! %s", strings.Join(handles, ", "))
-			logger.Record.Info(fmt.Sprintf("User %s successfully linked wallet with tx ID: %s and ADA handle: %s", i.Interaction.Member.User.ID, txID, strings.Join(handles, ", ")))
-		} else {
-			content = fmt.Sprintf("Your wallet has been linked successfully! %s", address.Address)
+		if !walletExists {
+			user.LinkedWallets = append(user.LinkedWallets, cv.Wallet{
+				Payment: address.Address,
+				Stake:   *address.StakeAddress,
+			})
+			user.Save()
+
+			if len(handles) > 0 {
+				content = fmt.Sprintf("Your wallet has been linked successfully! %s", strings.Join(handles, ", "))
+				logger.Record.Info(fmt.Sprintf("User %s successfully linked wallet with tx ID: %s and ADA handle: %s", i.Interaction.Member.User.ID, txID, strings.Join(handles, ", ")))
+			} else {
+				content = fmt.Sprintf("Your wallet has been linked successfully! %s", address.Address)
+			}
+		}
+
+		content += "\n**Linked Wallets**\n"
+		for _, wallet := range user.LinkedWallets {
+			content += fmt.Sprintf("1. %s\n", wallet.Payment)
 		}
 
 		logger.Record.Info(fmt.Sprintf("User %s successfully linked wallet with tx ID: %s", i.Interaction.Member.User.ID, txID))
