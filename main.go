@@ -42,6 +42,7 @@ var (
 		&discord.CONFIGURE_REWARD_COMMAND,
 		&discord.LINK_WALLET_COMMAND,
 		&discord.WITHDRAW_COMMAND,
+		&discord.CREATE_AIRDROP_COMMAND,
 	}
 
 	commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
@@ -54,6 +55,7 @@ var (
 		discord.CONFIGURE_REWARD_COMMAND.Name:     discord.CONFIGURE_REWARD_HANDLER,
 		discord.LINK_WALLET_COMMAND.Name:          discord.LINK_WALLET_HANDLER,
 		discord.WITHDRAW_COMMAND.Name:             discord.WITHDRAW_HANDLER,
+		discord.CREATE_AIRDROP_COMMAND.Name:       discord.CREATE_AIRDROP_HANDLER,
 	}
 
 	// Modal Handlers: Must be in this format! `name-of-modal` then finished with `_something`

@@ -222,7 +222,7 @@ func rewardHolderUpdater(ctx context.Context) {
 						// Check if the user holds the asset
 						assetLog := rewardLog.With("ASSET", asset)
 						if amount, ok := holdings[asset]; ok && amount > reward.AssetMinimum {
-							rewardLog.Info("HOLDER ELIGIBLE", "ASSET", asset, "AMOUNT", amount)
+							assetLog.Info("HOLDER ELIGIBLE", "ASSET", asset, "AMOUNT", amount)
 
 							// Get current reward entry or create a new one
 							entry := user.Rewards[config.GuildID][reward.RewardToken]
@@ -238,24 +238,24 @@ func rewardHolderUpdater(ctx context.Context) {
 						}
 						
 					}
-					if len(matchingRoles) > 0 {
-						if reward.Balance - reward.RoleAmount <= 0 {
-							rewardLog.Error("Reward balance is empty!")
-						}
-						rewardLog.Info("ELIGIBLE", "AMOUNT", reward.RoleAmount)
+					// if len(matchingRoles) > 0 {
+					// 	if reward.Balance - reward.RoleAmount <= 0 {
+					// 		rewardLog.Error("Reward balance is empty!")
+					// 	}
+					// 	rewardLog.Info("ELIGIBLE", "AMOUNT", reward.RoleAmount)
 
-						// Get current reward entry or create a new one
-						entry := user.Rewards[config.GuildID][reward.RewardToken]
-						entry.Earned += reward.RoleAmount
-						entry.LastClaimed = time.Now()
+					// 	// Get current reward entry or create a new one
+					// 	entry := user.Rewards[config.GuildID][reward.RewardToken]
+					// 	entry.Earned += reward.RoleAmount
+					// 	entry.LastClaimed = time.Now()
 
-						// Reduce the reward balance available.
-						config.Rewards[key].Balance -= reward.RoleAmount
-						config.Save()
+					// 	// Reduce the reward balance available.
+					// 	config.Rewards[key].Balance -= reward.RoleAmount
+					// 	config.Save()
 
-						// Save it back to the map
-						user.Rewards[config.GuildID][reward.RewardToken] = entry
-					}
+					// 	// Save it back to the map
+					// 	user.Rewards[config.GuildID][reward.RewardToken] = entry
+					// }
 				}
 			}
 
