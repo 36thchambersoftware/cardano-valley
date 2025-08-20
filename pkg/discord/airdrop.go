@@ -2,6 +2,8 @@ package discord
 
 import (
 	"bytes"
+	"cardano-valley/pkg/blockfrost"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -93,7 +95,6 @@ type AirdropSession struct {
 	PolicyID       string   `json:"policy_id,omitempty"`
 	HoldersPath    string   `json:"holders_path,omitempty"` // JSON file path (if uploaded)
 	ADAperNFT      float64  `json:"ada_per_nft"`
-	RefundAddress  string   `json:"refund_address,omitempty"` // optional; leftover goes here after fee; otherwise to CARDANO_VALLEY
 	Holders        []Holder `json:"holders"`
 
 	// computed
@@ -346,9 +347,10 @@ func watchAndRunAirdrop(s *discordgo.Session, i *discordgo.InteractionCreate, se
 
 	required := ses.TotalLovelaceRequired
 	var have uint64
+	ctx := context.Background()
 	for {
 		time.Sleep(depositPollInterval)
-		have, err = getAddressBalance_Blockfrost(ses.Address, getEnv("BLOCKFROST_API_KEY"))
+		have, err = blockfrost.GetAddressBalance_Blockfrost(ctx, ses.Address)
 		if err != nil {
 			ses.LastError = "balance check: " + err.Error()
 			_ = saveSession(ses)
@@ -430,41 +432,6 @@ func watchAndRunAirdrop(s *discordgo.Session, i *discordgo.InteractionCreate, se
 //  CARDANO CHAIN HELPERS (Blockfrost + cardano-cli)
 // ────────────────────────────────────────────────────────────────────────────────
 //
-
-func getAddressBalance_Blockfrost(addr, apiKey string) (uint64, error) {
-	if apiKey == "" {
-		return 0, errors.New("BLOCKFROST_API_KEY required")
-	}
-	req, _ := http.NewRequest("GET",
-		fmt.Sprintf("https://cardano-mainnet.blockfrost.io/api/v0/addresses/%s", addr), nil)
-	req.Header.Set("project_id", apiKey)
-	rsp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return 0, err
-	}
-	defer rsp.Body.Close()
-	if rsp.StatusCode >= 300 {
-		b, _ := io.ReadAll(rsp.Body)
-		return 0, fmt.Errorf("blockfrost address: %s", string(b))
-	}
-	var info struct {
-		Amount []struct {
-			Unit     string `json:"unit"`
-			Quantity string `json:"quantity"`
-		} `json:"amount"`
-	}
-	if err := json.NewDecoder(rsp.Body).Decode(&info); err != nil {
-		return 0, err
-	}
-	var lovelace uint64
-	for _, a := range info.Amount {
-		if a.Unit == "lovelace" {
-			v, _ := strconv.ParseInt(a.Quantity, 10, 64)
-			lovelace += uint64(v)
-		}
-	}
-	return lovelace, nil
-}
 
 func buildSignSubmitAirdropTxs(ses *AirdropSession) ([]string, error) {
 	// Chunk outputs into batches
@@ -558,8 +525,9 @@ func payServiceFeeAndDrain(s *AirdropSession) error {
 		return errors.New("CARDANO_VALLEY_ADDRESS env var is required")
 	}
 
+	ctx := context.Background()
 	// Check current balance
-	bal, err := getAddressBalance_Blockfrost(s.Address, getEnv("BLOCKFROST_API_KEY"))
+	bal, err := blockfrost.GetAddressBalance_Blockfrost(ctx, s.Address)
 	if err != nil {
 		return err
 	}
@@ -576,10 +544,7 @@ func payServiceFeeAndDrain(s *AirdropSession) error {
 	// Build outputs:
 	//  - 20 ADA to cardano_valley
 	//  - remainder to refund (or cardano_valley) ; cardano-cli will compute change if needed
-	refund := s.RefundAddress
-	if refund == "" {
-		refund = pree
-	}
+	refund := pree
 
 	txBody := filepath.Join(s.WalletDir, "fee_tx.raw")
 	txSigned := filepath.Join(s.WalletDir, "fee_tx.signed")
@@ -619,7 +584,7 @@ func payServiceFeeAndDrain(s *AirdropSession) error {
 
 	// Re-check balance; if any dust remains, attempt final drain to pree
 	time.Sleep(5 * time.Second)
-	left, _ := getAddressBalance_Blockfrost(s.Address, getEnv("BLOCKFROST_API_KEY"))
+	left, _ := blockfrost.GetAddressBalance_Blockfrost(ctx, s.Address)
 	if left > 0 {
 		// Try to empty completely
 		_ = drainAllTo(s, pree)

@@ -2,6 +2,7 @@ package blockfrost
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/blockfrost/blockfrost-go"
 )
@@ -26,4 +27,20 @@ func GetAddress(ctx context.Context, address string) (blockfrost.Address, error)
 	}
 
 	return addr, nil
+}
+
+func GetAddressBalance_Blockfrost(ctx context.Context, address string) (uint64, error) {
+	addr, err := client.Address(ctx, address)
+	if err != nil {
+		return 0, err
+	}
+
+	var lovelace uint64
+	for _, a := range addr.Amount {
+		if a.Unit == "lovelace" {
+			v, _ := strconv.ParseInt(a.Quantity, 10, 64)
+			lovelace += uint64(v)
+		}
+	}
+	return lovelace, nil
 }

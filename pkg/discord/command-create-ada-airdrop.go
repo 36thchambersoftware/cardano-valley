@@ -32,12 +32,6 @@ var CREATE_AIRDROP_COMMAND = discordgo.ApplicationCommand{
 			Description: "Policy ID to fetch holders from chain",
 			Required:    false,
 		},
-		{
-			Type:        discordgo.ApplicationCommandOptionString,
-			Name:        "refund_address",
-			Description: "Optional: where leftover (after 20 ADA fee) should go",
-			Required:    false,
-		},
 	},
 }
 
@@ -48,7 +42,6 @@ var CREATE_AIRDROP_HANDLER = func(s *discordgo.Session, i *discordgo.Interaction
 		attachment *discordgo.MessageAttachment
 		policyID   string
 		adaPerNFT  float64
-		refundAddr string
 	)
 
 	for _, opt := range data.Options {
@@ -60,8 +53,6 @@ var CREATE_AIRDROP_HANDLER = func(s *discordgo.Session, i *discordgo.Interaction
 			policyID = opt.StringValue()
 		case "ada_per_nft":
 			adaPerNFT = opt.FloatValue()
-		case "refund_address":
-			refundAddr = strings.TrimSpace(opt.StringValue())
 		}
 	}
 
@@ -131,7 +122,6 @@ var CREATE_AIRDROP_HANDLER = func(s *discordgo.Session, i *discordgo.Interaction
 	session.TotalNFTs = totalNFTs
 	session.TotalRecipients = totalRecipients
 	session.TotalLovelaceRequired = totalWithBuffer
-	session.RefundAddress = refundAddr
 	if attachment != nil {
 		// persist the raw JSON holders for later reference
 		raw, _ := json.MarshalIndent(holders, "", "  ")
