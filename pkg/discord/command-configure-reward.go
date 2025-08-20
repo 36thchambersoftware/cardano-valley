@@ -96,14 +96,14 @@ var CONFIGURE_REWARD_HANDLER = func(s *discordgo.Session, i *discordgo.Interacti
 	for _, asset := range guildAddress.Amount {
 		qty, err := strconv.Atoi(asset.Quantity)
 		if err != nil {
-			logger.Record.Error("Error converting asset quantity to integer: %v", err)
+			logger.Record.Error("Error converting asset quantity to integer", "error", err)
 			continue
 		}
 
 		if asset.Quantity != "" && qty > 1 && asset.Unit != "" && asset.Unit != "lovelace" {
 			assetInfo, err := blockfrost.AssetInfo(ctx, asset.Unit)
 			if err != nil {
-				logger.Record.Error("Error retrieving asset info: %v", err)
+				logger.Record.Error("Error retrieving asset info", "error", err)
 				continue
 			}
 

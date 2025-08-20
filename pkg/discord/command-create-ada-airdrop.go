@@ -155,7 +155,7 @@ var CREATE_AIRDROP_HANDLER = func(s *discordgo.Session, i *discordgo.Interaction
 			{Name: "Total NFTs", Value: fmt.Sprintf("%d", totalNFTs), Inline: true},
 			{Name: "ADA per NFT", Value: fmt.Sprintf("%.6f", adaPerNFT), Inline: true},
 			{Name: "Required ADA (incl. 5 ADA buffer)", Value: fmt.Sprintf("%.6f", float64(totalWithBuffer)/1_000_000.0), Inline: true},
-			{Name: "Service Fee (separate after airdrop)", Value: "20 ADA", Inline: true},
+			{Name: "Service Fee (separate from airdrop)", Value: "20 ADA", Inline: true},
 			{Name: "Deposit Address", Value: "```\n" + session.Address + "\n```", Inline: false},
 		},
 		Footer: &discordgo.MessageEmbedFooter{

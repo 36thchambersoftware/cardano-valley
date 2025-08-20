@@ -33,6 +33,10 @@ type Verification struct {
 }
 
 func init() {
+	// Skip initialization during testing
+	if os.Getenv("GO_TESTING") == "true" {
+		return
+	}
 	initDiscord()
 	initWebhook()
 }
