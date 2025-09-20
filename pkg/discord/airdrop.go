@@ -478,7 +478,7 @@ func buildSignSubmitSingleTx(ses *AirdropSession, batch []out) (string, error) {
 	}
 
 	// Build (letting cardano-cli calculate fee and change)
-	args := []string{"transaction", "build",
+	args := []string{"conway", "transaction", "build",
 		cardanoNetworkTag,
 		"--change-address", ses.Address,
 		"--out-file", txBody,
@@ -492,7 +492,7 @@ func buildSignSubmitSingleTx(ses *AirdropSession, batch []out) (string, error) {
 	}
 
 	// Sign
-	signArgs := []string{"transaction", "sign",
+	signArgs := []string{"conway", "transaction", "sign",
 		"--tx-body-file", txBody,
 		"--signing-key-file", ses.SKeyFile,
 		cardanoNetworkTag,
@@ -503,13 +503,13 @@ func buildSignSubmitSingleTx(ses *AirdropSession, batch []out) (string, error) {
 	}
 
 	// Submit
-	submitArgs := []string{"transaction", "submit", cardanoNetworkTag, "--tx-file", txSigned}
+	submitArgs := []string{"conway", "transaction", "submit", cardanoNetworkTag, "--tx-file", txSigned}
 	if out, err := execCmd("cardano-cli", submitArgs...); err != nil {
 		return "", fmt.Errorf("tx submit: %v (%s)", err, out)
 	}
 
 	// Query the txid from the signed file
-	idArgs := []string{"transaction", "txid", "--tx-file", txSigned}
+	idArgs := []string{"conway", "transaction", "txid", "--tx-file", txSigned}
 	out, err := execCmd("cardano-cli", idArgs...)
 	if err != nil {
 		return "", fmt.Errorf("txid: %v (%s)", err, out)
@@ -549,7 +549,7 @@ func payServiceFeeAndDrain(s *AirdropSession) error {
 	txBody := filepath.Join(s.WalletDir, "fee_tx.raw")
 	txSigned := filepath.Join(s.WalletDir, "fee_tx.signed")
 
-	args := []string{"transaction", "build",
+	args := []string{"conway", "transaction", "build",
 		cardanoNetworkTag,
 		"--change-address", s.Address,
 		"--tx-out", fmt.Sprintf("%s+%d", cardano_valley_address, serviceFeeLovelace),
@@ -560,7 +560,7 @@ func payServiceFeeAndDrain(s *AirdropSession) error {
 		return fmt.Errorf("fee tx build: %v (%s)", err, out)
 	}
 
-	signArgs := []string{"transaction", "sign",
+	signArgs := []string{"conway", "transaction", "sign",
 		"--tx-body-file", txBody,
 		"--signing-key-file", s.SKeyFile,
 		cardanoNetworkTag,
@@ -570,12 +570,12 @@ func payServiceFeeAndDrain(s *AirdropSession) error {
 		return fmt.Errorf("fee tx sign: %v (%s)", err, out)
 	}
 
-	submitArgs := []string{"transaction", "submit", cardanoNetworkTag, "--tx-file", txSigned}
+	submitArgs := []string{"conway", "transaction", "submit", cardanoNetworkTag, "--tx-file", txSigned}
 	if out, err := execCmd("cardano-cli", submitArgs...); err != nil {
 		return fmt.Errorf("fee tx submit: %v (%s)", err, out)
 	}
 
-	idArgs := []string{"transaction", "txid", "--tx-file", txSigned}
+	idArgs := []string{"conway", "transaction", "txid", "--tx-file", txSigned}
 	out, err := execCmd("cardano-cli", idArgs...)
 	if err != nil {
 		return fmt.Errorf("fee txid: %v (%s)", err, out)
@@ -595,7 +595,7 @@ func payServiceFeeAndDrain(s *AirdropSession) error {
 func drainAllTo(s *AirdropSession, to string) error {
 	txBody := filepath.Join(s.WalletDir, "drain_tx.raw")
 	txSigned := filepath.Join(s.WalletDir, "drain_tx.signed")
-	args := []string{"transaction", "build",
+	args := []string{"conway", "transaction", "build",
 		cardanoNetworkTag,
 		"--change-address", to, // push change to "to"
 		"--tx-out", fmt.Sprintf("%s+1", to), // dummy; change will take the rest
@@ -604,7 +604,7 @@ func drainAllTo(s *AirdropSession, to string) error {
 	if out, err := execCmd("cardano-cli", args...); err != nil {
 		return fmt.Errorf("drain build: %v (%s)", err, out)
 	}
-	signArgs := []string{"transaction", "sign",
+	signArgs := []string{"conway", "transaction", "sign",
 		"--tx-body-file", txBody,
 		"--signing-key-file", s.SKeyFile,
 		cardanoNetworkTag,
@@ -613,7 +613,7 @@ func drainAllTo(s *AirdropSession, to string) error {
 	if out, err := execCmd("cardano-cli", signArgs...); err != nil {
 		return fmt.Errorf("drain sign: %v (%s)", err, out)
 	}
-	submitArgs := []string{"transaction", "submit", cardanoNetworkTag, "--tx-file", txSigned}
+	submitArgs := []string{"conway", "transaction", "submit", cardanoNetworkTag, "--tx-file", txSigned}
 	if out, err := execCmd("cardano-cli", submitArgs...); err != nil {
 		return fmt.Errorf("drain submit: %v (%s)", err, out)
 	}

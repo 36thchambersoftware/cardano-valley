@@ -140,6 +140,7 @@ func QueryUTxOJson(addr string) (UTxOMap, error) {
 
 func BuildRawTransaction(txIns []string, txOut string, changeAddr string, outFile string) error {
 	args := []string{
+		"conway",
 		"transaction", "build",
 		"--alonzo-era",
 		"--change-address", changeAddr,
@@ -161,7 +162,7 @@ func BuildRawTransaction(txIns []string, txOut string, changeAddr string, outFil
 
 func SignTransaction(rawFile, skeyFile, outFile string) error {
 	args := []string{
-		"transaction", "sign",
+		"conway", "transaction", "sign",
 		"--tx-body-file", rawFile,
 		"--signing-key-file", skeyFile,
 		"--out-file", outFile,
@@ -178,7 +179,7 @@ func SignTransaction(rawFile, skeyFile, outFile string) error {
 
 func SubmitTransaction(signedFile string) error {
 	args := []string{
-		"transaction", "submit",
+		"conway", "transaction", "submit",
 		"--tx-file", signedFile,
 	}
 	args = append(args, strings.Split(NETWORK, " ")...)
