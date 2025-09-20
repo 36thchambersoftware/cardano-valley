@@ -29,7 +29,7 @@ func GetAddress(ctx context.Context, address string) (blockfrost.Address, error)
 	return addr, nil
 }
 
-func GetAddressBalance_Blockfrost(ctx context.Context, address string) (uint64, error) {
+func GetAddressBalance(ctx context.Context, address string) (uint64, error) {
 	addr, err := client.Address(ctx, address)
 	if err != nil {
 		return 0, err

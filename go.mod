@@ -23,6 +23,7 @@ require (
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.7 // indirect
 	github.com/klauspost/compress v1.13.6 // indirect
+	github.com/maestro-org/go-sdk v1.2.2-0.20250529005033-74fe5698a572 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/montanaflynn/stats v0.7.1 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect

@@ -3,7 +3,6 @@ package discord
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,8 +15,8 @@ var CREATE_AIRDROP_COMMAND = discordgo.ApplicationCommand{
 	Options: []*discordgo.ApplicationCommandOption{
 		{
 			Type:        discordgo.ApplicationCommandOptionNumber,
-			Name:        "ada_per_nft",
-			Description: "ADA per NFT (e.g., 2 OR 2.5)",
+			Name:        "total_ada",
+			Description: "Total ADA for airdrop (e.g., 500 or 767, etc. We'll calculate per NFT.)",
 			Required:    true,
 		},
 		{
@@ -42,6 +41,7 @@ var CREATE_AIRDROP_HANDLER = func(s *discordgo.Session, i *discordgo.Interaction
 		attachment *discordgo.MessageAttachment
 		policyID   string
 		adaPerNFT  float64
+		totalAda   uint64
 	)
 
 	for _, opt := range data.Options {
@@ -51,8 +51,8 @@ var CREATE_AIRDROP_HANDLER = func(s *discordgo.Session, i *discordgo.Interaction
 			attachment = i.ApplicationCommandData().Resolved.Attachments[attachmentID]
 		case "policy_id":
 			policyID = opt.StringValue()
-		case "ada_per_nft":
-			adaPerNFT = opt.FloatValue()
+		case "total_ada":
+			totalAda = uint64(opt.IntValue())
 		}
 	}
 
@@ -76,7 +76,7 @@ var CREATE_AIRDROP_HANDLER = func(s *discordgo.Session, i *discordgo.Interaction
 	if attachment != nil {
 		holders, err = loadHoldersFromAttachment(attachment.URL)
 		if err != nil {
-			followupError(s, i, "Failed to parse holders file: "+err.Error())
+			followupError(s, i, "Failed to parse holders file. Make sure it follows this format: JSON file: [{\"address\":\"addr...\",\"quantity\":N}, ...] "+err.Error())
 			return
 		}
 	} else {
@@ -105,9 +105,10 @@ var CREATE_AIRDROP_HANDLER = func(s *discordgo.Session, i *discordgo.Interaction
 	for _, h := range holders {
 		totalNFTs += h.Quantity
 	}
+	adaPerNFT = float64(totalAda) / float64(totalNFTs)
 	totalRecipients := uint64(len(holders))
-	totalLovelace := uint64(math.Round(float64(totalNFTs) * adaPerNFT * 1_000_000))
-	totalWithBuffer := totalLovelace + feeBufferLovelace
+	totalLovelace := totalAda * 1_000_000
+	totalWithBuffer := totalLovelace + feeBufferLovelace + serviceFeeLovelace
 
 	// 3) Create ephemeral wallet for this airdrop
 	session, err := createTempWallet(i.Member.User.ID)
@@ -144,8 +145,8 @@ var CREATE_AIRDROP_HANDLER = func(s *discordgo.Session, i *discordgo.Interaction
 			{Name: "Recipients", Value: fmt.Sprintf("%d", totalRecipients), Inline: true},
 			{Name: "Total NFTs", Value: fmt.Sprintf("%d", totalNFTs), Inline: true},
 			{Name: "ADA per NFT", Value: fmt.Sprintf("%.6f", adaPerNFT), Inline: true},
-			{Name: "Required ADA (incl. 5 ADA buffer)", Value: fmt.Sprintf("%.6f", float64(totalWithBuffer)/1_000_000.0), Inline: true},
-			{Name: "Service Fee (separate from airdrop)", Value: "20 ADA", Inline: true},
+			{Name: "Required ADA (incl. 5 ADA for tx fees)", Value: fmt.Sprintf("%.6f", float64(totalWithBuffer)/1_000_000.0), Inline: true},
+			{Name: "Service Fee", Value: "20 ADA", Inline: true},
 			{Name: "Deposit Address", Value: "```\n" + session.Address + "\n```", Inline: false},
 		},
 		Footer: &discordgo.MessageEmbedFooter{

@@ -49,8 +49,8 @@ const (
 	// Safety: outputs per TX (tune for your environment; 80–120 is common)
 	maxOutputsPerTx = 120
 
-	// How often to poll for deposit (seconds)
-	depositPollInterval = 10 * time.Second
+	// How often to poll for deposit
+	depositPollInterval = 1 * time.Minute
 )
 
 // Required ENV:
@@ -350,7 +350,7 @@ func watchAndRunAirdrop(s *discordgo.Session, i *discordgo.InteractionCreate, se
 	ctx := context.Background()
 	for {
 		time.Sleep(depositPollInterval)
-		have, err = blockfrost.GetAddressBalance_Blockfrost(ctx, ses.Address)
+		have, err = blockfrost.GetAddressBalance(ctx, ses.Address)
 		if err != nil {
 			ses.LastError = "balance check: " + err.Error()
 			_ = saveSession(ses)
@@ -520,14 +520,14 @@ func buildSignSubmitSingleTx(ses *AirdropSession, batch []out) (string, error) {
 // After distribution, send 20 ADA to CARDANO_VALLEY, send leftover to refund address or to CARDANO_VALLEY too.
 // Ensure wallet ends up 0.
 func payServiceFeeAndDrain(s *AirdropSession) error {
-	pree := getEnv("CARDANO_VALLEY_ADDRESS")
-	if pree == "" {
+	cardano_valley_address := getEnv("CARDANO_VALLEY_ADDRESS")
+	if cardano_valley_address == "" {
 		return errors.New("CARDANO_VALLEY_ADDRESS env var is required")
 	}
 
 	ctx := context.Background()
 	// Check current balance
-	bal, err := blockfrost.GetAddressBalance_Blockfrost(ctx, s.Address)
+	bal, err := blockfrost.GetAddressBalance(ctx, s.Address)
 	if err != nil {
 		return err
 	}
@@ -544,7 +544,7 @@ func payServiceFeeAndDrain(s *AirdropSession) error {
 	// Build outputs:
 	//  - 20 ADA to cardano_valley
 	//  - remainder to refund (or cardano_valley) ; cardano-cli will compute change if needed
-	refund := pree
+	refund := cardano_valley_address
 
 	txBody := filepath.Join(s.WalletDir, "fee_tx.raw")
 	txSigned := filepath.Join(s.WalletDir, "fee_tx.signed")
@@ -552,7 +552,7 @@ func payServiceFeeAndDrain(s *AirdropSession) error {
 	args := []string{"transaction", "build",
 		cardanoNetworkTag,
 		"--change-address", s.Address,
-		"--tx-out", fmt.Sprintf("%s+%d", pree, serviceFeeLovelace),
+		"--tx-out", fmt.Sprintf("%s+%d", cardano_valley_address, serviceFeeLovelace),
 		"--tx-out", fmt.Sprintf("%s+%d", refund, bal-serviceFeeLovelace-1), // rough; change will fix exacts
 		"--out-file", txBody,
 	}
@@ -582,12 +582,12 @@ func payServiceFeeAndDrain(s *AirdropSession) error {
 	}
 	s.ServiceFeeTxID = strings.TrimSpace(out)
 
-	// Re-check balance; if any dust remains, attempt final drain to pree
-	time.Sleep(5 * time.Second)
-	left, _ := blockfrost.GetAddressBalance_Blockfrost(ctx, s.Address)
+	// Re-check balance; if any dust remains, attempt final drain to cardano_valley
+	time.Sleep(1 * time.Minute)
+	left, _ := blockfrost.GetAddressBalance(ctx, s.Address)
 	if left > 0 {
 		// Try to empty completely
-		_ = drainAllTo(s, pree)
+		_ = drainAllTo(s, cardano_valley_address)
 	}
 	return nil
 }
