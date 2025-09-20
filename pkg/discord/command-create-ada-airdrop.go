@@ -14,7 +14,7 @@ var CREATE_AIRDROP_COMMAND = discordgo.ApplicationCommand{
 	Description: "Create a new ADA airdrop (file OR policy_id required).",
 	Options: []*discordgo.ApplicationCommandOption{
 		{
-			Type:        discordgo.ApplicationCommandOptionNumber,
+			Type:        discordgo.ApplicationCommandOptionInteger,
 			Name:        "total_ada",
 			Description: "Total ADA for airdrop (e.g., 500 or 767, etc. We'll calculate per NFT.)",
 			Required:    true,
