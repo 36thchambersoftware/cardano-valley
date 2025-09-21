@@ -517,7 +517,7 @@ func buildSignSubmitSingleTx(ses *AirdropSession, batch []out) (string, error) {
 		CardanoNetworkTag,
 		"--socket-path", socketPath,
 		"--out-file", txBody,
-		"--metadata-json-file", "metadata.json",
+		"--metadata-json-file", "/home/cardano/cardano-valley-metadata.json",
 	}
 	args = append(args, txIns...)
 	args = append(args, outArgs...)
