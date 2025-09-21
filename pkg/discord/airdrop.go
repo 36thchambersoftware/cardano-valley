@@ -522,7 +522,7 @@ func buildSignSubmitSingleTx(ses *AirdropSession, batch []out) (string, error) {
 	args = append(args, txIns...)
 	args = append(args, outArgs...)
 
-	logger.Record.Info("building tx, %v", args)
+	logger.Record.Info("building tx", "ARGS", args)
 
 	if out, err := execCmd("cardano-cli", args...); err != nil {
 		return "", fmt.Errorf("tx build: %v (%s)", err, out)
@@ -536,14 +536,14 @@ func buildSignSubmitSingleTx(ses *AirdropSession, batch []out) (string, error) {
 		"--socket-path", socketPath,
 		"--out-file", txSigned,
 	}
-	logger.Record.Info("signing tx, %v", signArgs)
+	logger.Record.Info("signing tx", "ARGS", signArgs)
 	if out, err := execCmd("cardano-cli", signArgs...); err != nil {
 		return "", fmt.Errorf("tx sign: %v (%s)", err, out)
 	}
 
 	// Submit
 	submitArgs := []string{"conway", "transaction", "submit", CardanoNetworkTag, "--tx-file", txSigned, "--socket-path", socketPath,}
-	logger.Record.Info("submitting tx, %v", submitArgs)
+	logger.Record.Info("submitting tx", "ARGS", submitArgs)
 	if out, err := execCmd("cardano-cli", submitArgs...); err != nil {
 		return "", fmt.Errorf("tx submit: %v (%s)", err, out)
 	}
