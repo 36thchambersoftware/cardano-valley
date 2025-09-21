@@ -533,7 +533,6 @@ func buildSignSubmitSingleTx(ses *AirdropSession, batch []out) (string, error) {
 		"--tx-body-file", txBody,
 		"--signing-key-file", ses.SKeyFile,
 		CardanoNetworkTag,
-		"--socket-path", socketPath,
 		"--out-file", txSigned,
 	}
 	logger.Record.Info("signing tx", "ARGS", signArgs)
