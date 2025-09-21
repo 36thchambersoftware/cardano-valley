@@ -548,7 +548,7 @@ func buildSignSubmitSingleTx(ses *AirdropSession, batch []out) (string, error) {
 	}
 
 	// Query the txid from the signed file
-	idArgs := []string{"conway", "transaction", "txid", "--tx-file", txSigned, "--socket-path", socketPath,}
+	idArgs := []string{"conway", "transaction", "txid", "--tx-file", txSigned,}
 	out, err = execCmd("cardano-cli", idArgs...)
 	if err != nil {
 		return "", fmt.Errorf("txid: %v (%s)", err, out)
