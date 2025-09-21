@@ -474,6 +474,7 @@ func buildSignSubmitSingleTx(ses *AirdropSession, batch []out) (string, error) {
 
 	txBody := filepath.Join(ses.WalletDir, fmt.Sprintf("txbody_%d.raw", time.Now().UnixNano()))
 	txSigned := filepath.Join(ses.WalletDir, fmt.Sprintf("txsigned_%d.signed", time.Now().UnixNano()))
+	socketPath := os.Getenv("CARDANO_NODE_SOCKET_PATH")
 
 	// Gather tx-out args
 	var outArgs []string
@@ -486,7 +487,9 @@ func buildSignSubmitSingleTx(ses *AirdropSession, batch []out) (string, error) {
 	// We have to have a tx-in
 	out, err := execCmd("cardano-cli", "query", "utxo",
 		"--address", ses.Address,
-		"--mainnet",
+		CardanoNetworkTag,
+		"--socket-path", socketPath,
+		"--out-file", "/dev/stdout",
 		"--output-json",
 	)
 	if err != nil {
@@ -512,6 +515,7 @@ func buildSignSubmitSingleTx(ses *AirdropSession, batch []out) (string, error) {
 	args := []string{"conway", "transaction", "build",
 		"--change-address", ses.Address,
 		CardanoNetworkTag,
+		"--socket-path", socketPath,
 		"--out-file", txBody,
 		"--metadata-json-file", "metadata.json",
 	}
@@ -529,6 +533,7 @@ func buildSignSubmitSingleTx(ses *AirdropSession, batch []out) (string, error) {
 		"--tx-body-file", txBody,
 		"--signing-key-file", ses.SKeyFile,
 		CardanoNetworkTag,
+		"--socket-path", socketPath,
 		"--out-file", txSigned,
 	}
 	logger.Record.Info("signing tx, %v", signArgs)
@@ -537,14 +542,14 @@ func buildSignSubmitSingleTx(ses *AirdropSession, batch []out) (string, error) {
 	}
 
 	// Submit
-	submitArgs := []string{"conway", "transaction", "submit", CardanoNetworkTag, "--tx-file", txSigned}
+	submitArgs := []string{"conway", "transaction", "submit", CardanoNetworkTag, "--tx-file", txSigned, "--socket-path", socketPath,}
 	logger.Record.Info("submitting tx, %v", submitArgs)
 	if out, err := execCmd("cardano-cli", submitArgs...); err != nil {
 		return "", fmt.Errorf("tx submit: %v (%s)", err, out)
 	}
 
 	// Query the txid from the signed file
-	idArgs := []string{"conway", "transaction", "txid", "--tx-file", txSigned}
+	idArgs := []string{"conway", "transaction", "txid", "--tx-file", txSigned, "--socket-path", socketPath,}
 	out, err = execCmd("cardano-cli", idArgs...)
 	if err != nil {
 		return "", fmt.Errorf("txid: %v (%s)", err, out)
