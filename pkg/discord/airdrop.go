@@ -3,6 +3,7 @@ package discord
 import (
 	"bytes"
 	"cardano-valley/pkg/blockfrost"
+	"cardano-valley/pkg/logger"
 	"context"
 	"encoding/json"
 	"errors"
@@ -30,7 +31,7 @@ import (
 
 const (
 	// Change to "--mainnet" if you're on mainnet
-	cardanoNetworkTag = "--mainnet"
+	CardanoNetworkTag = "--mainnet"
 	// For pre-prod/testnet use: "--testnet-magic", "1xxxxxx"
 	// cardanoNetworkTag = "--testnet-magic"
 	// testnetMagicValue = "1097911063"
@@ -123,6 +124,11 @@ type out struct {
 	Addr     string
 	Lovelace int64
 }
+
+type UTxOMap map[string]struct {
+		TxHash string `json:"tx_hash"`
+		TxIx   int    `json:"tx_index"`
+	}
 
 // in-memory locker so concurrent workers don't trample the same session
 var sessionLocks sync.Map // map[sessionID]*sync.Mutex
@@ -302,7 +308,7 @@ func createTempWallet(discordID string) (*AirdropSession, error) {
 	}
 
 	// Build address
-	buildArgs := []string{"address", "build", "--payment-verification-key-file", vkey, "--out-file", addr, cardanoNetworkTag}
+	buildArgs := []string{"address", "build", "--payment-verification-key-file", vkey, "--out-file", addr, CardanoNetworkTag}
 	if out, err := execCmd("cardano-cli", buildArgs...); err != nil {
 		return nil, fmt.Errorf("address build: %v (%s)", err, out)
 	}
@@ -477,16 +483,43 @@ func buildSignSubmitSingleTx(ses *AirdropSession, batch []out) (string, error) {
 		totalBatch += o.Lovelace
 	}
 
+	// We have to have a tx-in
+	out, err := execCmd("cardano-cli", "query", "utxo",
+		"--address", ses.Address,
+		"--mainnet",
+		"--output-json",
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to query UTXOs: %w", err)
+	}
+
+	// Parse JSON into map
+	var utxos UTxOMap
+	if err := json.Unmarshal([]byte(out), &utxos); err != nil {
+		return "", fmt.Errorf("failed to parse UTXO JSON: %w", err)
+	}
+
+	txIns := []string{}
+	for utxo := range utxos {
+		// key is like "txhash#txix"
+		txIns = append(txIns, "--tx-in", utxo)
+	}
+	if len(txIns) == 0 {
+		return "", fmt.Errorf("no UTXOs found at address %s", ses.Address)
+	}
+
 	// Build (letting cardano-cli calculate fee and change)
 	args := []string{"conway", "transaction", "build",
-		cardanoNetworkTag,
 		"--change-address", ses.Address,
+		CardanoNetworkTag,
 		"--out-file", txBody,
+		"--metadata-json-file", "metadata.json",
 	}
+	args = append(args, txIns...)
 	args = append(args, outArgs...)
 
-	// IMPORTANT: UTxO selection is automatic in recent cardano-cli;
-	// if needed, you can query UTxOs and add --tx-in args.
+	logger.Record.Info("building tx, %v", args)
+
 	if out, err := execCmd("cardano-cli", args...); err != nil {
 		return "", fmt.Errorf("tx build: %v (%s)", err, out)
 	}
@@ -495,22 +528,24 @@ func buildSignSubmitSingleTx(ses *AirdropSession, batch []out) (string, error) {
 	signArgs := []string{"conway", "transaction", "sign",
 		"--tx-body-file", txBody,
 		"--signing-key-file", ses.SKeyFile,
-		cardanoNetworkTag,
+		CardanoNetworkTag,
 		"--out-file", txSigned,
 	}
+	logger.Record.Info("signing tx, %v", signArgs)
 	if out, err := execCmd("cardano-cli", signArgs...); err != nil {
 		return "", fmt.Errorf("tx sign: %v (%s)", err, out)
 	}
 
 	// Submit
-	submitArgs := []string{"conway", "transaction", "submit", cardanoNetworkTag, "--tx-file", txSigned}
+	submitArgs := []string{"conway", "transaction", "submit", CardanoNetworkTag, "--tx-file", txSigned}
+	logger.Record.Info("submitting tx, %v", submitArgs)
 	if out, err := execCmd("cardano-cli", submitArgs...); err != nil {
 		return "", fmt.Errorf("tx submit: %v (%s)", err, out)
 	}
 
 	// Query the txid from the signed file
 	idArgs := []string{"conway", "transaction", "txid", "--tx-file", txSigned}
-	out, err := execCmd("cardano-cli", idArgs...)
+	out, err = execCmd("cardano-cli", idArgs...)
 	if err != nil {
 		return "", fmt.Errorf("txid: %v (%s)", err, out)
 	}
@@ -550,7 +585,7 @@ func payServiceFeeAndDrain(s *AirdropSession) error {
 	txSigned := filepath.Join(s.WalletDir, "fee_tx.signed")
 
 	args := []string{"conway", "transaction", "build",
-		cardanoNetworkTag,
+		CardanoNetworkTag,
 		"--change-address", s.Address,
 		"--tx-out", fmt.Sprintf("%s+%d", cardano_valley_address, serviceFeeLovelace),
 		"--tx-out", fmt.Sprintf("%s+%d", refund, bal-serviceFeeLovelace-1), // rough; change will fix exacts
@@ -563,14 +598,14 @@ func payServiceFeeAndDrain(s *AirdropSession) error {
 	signArgs := []string{"conway", "transaction", "sign",
 		"--tx-body-file", txBody,
 		"--signing-key-file", s.SKeyFile,
-		cardanoNetworkTag,
+		CardanoNetworkTag,
 		"--out-file", txSigned,
 	}
 	if out, err := execCmd("cardano-cli", signArgs...); err != nil {
 		return fmt.Errorf("fee tx sign: %v (%s)", err, out)
 	}
 
-	submitArgs := []string{"conway", "transaction", "submit", cardanoNetworkTag, "--tx-file", txSigned}
+	submitArgs := []string{"conway", "transaction", "submit", CardanoNetworkTag, "--tx-file", txSigned}
 	if out, err := execCmd("cardano-cli", submitArgs...); err != nil {
 		return fmt.Errorf("fee tx submit: %v (%s)", err, out)
 	}
@@ -596,7 +631,7 @@ func drainAllTo(s *AirdropSession, to string) error {
 	txBody := filepath.Join(s.WalletDir, "drain_tx.raw")
 	txSigned := filepath.Join(s.WalletDir, "drain_tx.signed")
 	args := []string{"conway", "transaction", "build",
-		cardanoNetworkTag,
+		CardanoNetworkTag,
 		"--change-address", to, // push change to "to"
 		"--tx-out", fmt.Sprintf("%s+1", to), // dummy; change will take the rest
 		"--out-file", txBody,
@@ -607,13 +642,13 @@ func drainAllTo(s *AirdropSession, to string) error {
 	signArgs := []string{"conway", "transaction", "sign",
 		"--tx-body-file", txBody,
 		"--signing-key-file", s.SKeyFile,
-		cardanoNetworkTag,
+		CardanoNetworkTag,
 		"--out-file", txSigned,
 	}
 	if out, err := execCmd("cardano-cli", signArgs...); err != nil {
 		return fmt.Errorf("drain sign: %v (%s)", err, out)
 	}
-	submitArgs := []string{"conway", "transaction", "submit", cardanoNetworkTag, "--tx-file", txSigned}
+	submitArgs := []string{"conway", "transaction", "submit", CardanoNetworkTag, "--tx-file", txSigned}
 	if out, err := execCmd("cardano-cli", submitArgs...); err != nil {
 		return fmt.Errorf("drain submit: %v (%s)", err, out)
 	}
