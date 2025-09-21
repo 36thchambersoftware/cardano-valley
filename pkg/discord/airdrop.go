@@ -643,7 +643,6 @@ func payServiceFeeAndDrain(s *AirdropSession) error {
 
 
 	args = []string{"conway", "transaction", "build-raw",
-		CardanoNetworkTag,
 		"--fee", fmt.Sprintf("%d", fee),
 		"--tx-out", fmt.Sprintf("%s+%d", cardano_valley_address, bal),
 		"--out-file", txBody,
