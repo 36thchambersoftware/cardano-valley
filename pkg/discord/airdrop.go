@@ -559,6 +559,7 @@ func buildSignSubmitSingleTx(ses *AirdropSession, batch []out) (string, error) {
 // After distribution, send 20 ADA to CARDANO_VALLEY, send leftover to refund address or to CARDANO_VALLEY too.
 // Ensure wallet ends up 0.
 func payServiceFeeAndDrain(s *AirdropSession) error {
+	socketPath := os.Getenv("CARDANO_NODE_SOCKET_PATH")
 	cardano_valley_address := getEnv("CARDANO_VALLEY_ADDRESS")
 	if cardano_valley_address == "" {
 		return errors.New("CARDANO_VALLEY_ADDRESS env var is required")
@@ -574,27 +575,81 @@ func payServiceFeeAndDrain(s *AirdropSession) error {
 		return nil // already empty
 	}
 
-	// We try to send service fee + remainder out in one go.
-	// If balance is < serviceFee, user underfunded; return error.
-	if bal < serviceFeeLovelace {
-		return fmt.Errorf("insufficient balance for 20 ADA fee: have %d lovelace", bal)
-	}
-
-	// Build outputs:
-	//  - 20 ADA to cardano_valley
-	//  - remainder to refund (or cardano_valley) ; cardano-cli will compute change if needed
-	refund := cardano_valley_address
-
 	txBody := filepath.Join(s.WalletDir, "fee_tx.raw")
 	txSigned := filepath.Join(s.WalletDir, "fee_tx.signed")
+	pParams := "/home/cardano/cardano/pparams.json"
 
-	args := []string{"conway", "transaction", "build",
+	// We have to have a tx-in
+	out, err := execCmd("cardano-cli", "query", "utxo",
+		"--address", s.Address,
 		CardanoNetworkTag,
-		"--change-address", s.Address,
-		"--tx-out", fmt.Sprintf("%s+%d", cardano_valley_address, serviceFeeLovelace),
-		"--tx-out", fmt.Sprintf("%s+%d", refund, bal-serviceFeeLovelace-1), // rough; change will fix exacts
-		"--out-file", txBody,
+		"--socket-path", socketPath,
+		"--out-file", "/dev/stdout",
+		"--output-json",
+	)
+	if err != nil {
+		return fmt.Errorf("failed to query UTXOs: %w", err)
 	}
+
+	// Parse JSON into map
+	var utxos UTxOMap
+	if err := json.Unmarshal([]byte(out), &utxos); err != nil {
+		return fmt.Errorf("failed to parse UTXO JSON: %w", err)
+	}
+
+	txIns := []string{}
+	for utxo := range utxos {
+		// key is like "txhash#txix"
+		txIns = append(txIns, "--tx-in", utxo)
+	}
+	if len(txIns) == 0 {
+		return fmt.Errorf("no UTXOs found at address %s", s.Address)
+	}
+
+	args := []string{"conway", "transaction", "build-raw",
+		CardanoNetworkTag,
+		"--fee", "0", // let cardano-cli calculate
+		"--tx-out", fmt.Sprintf("%s+%d", cardano_valley_address, bal),
+		"--out-file", txBody,
+		"--socket-path", socketPath,
+	}
+	args = append(args, txIns...)
+	if out, err := execCmd("cardano-cli", args...); err != nil {
+		return fmt.Errorf("fee tx build: %v (%s)", err, out)
+	}
+
+	feeArgs := []string{"conway", "transaction", "calculate-min-fee",
+		"--tx-body-file", txBody,
+		"--witness-count", "1",
+		CardanoNetworkTag,
+		"--protocol-params-file", pParams,
+	}
+	out, err = execCmd("cardano-cli", feeArgs...)
+	if err != nil {
+		return fmt.Errorf("fee calc: %v (%s)", err, out)
+	}
+	fields := strings.Fields(out)
+	if len(fields) < 1 {
+		return fmt.Errorf("fee calc: unexpected output: %s", out)
+	}
+	fee, err := strconv.ParseUint(fields[0], 10, 64)
+	if err != nil {
+		return fmt.Errorf("fee parse: %v (%s)", err, out)
+	}
+	bal -= fee
+	if bal < 0 {
+		return fmt.Errorf("insufficient funds to pay fee of %d lovelace", fee)
+	}
+
+
+	args = []string{"conway", "transaction", "build-raw",
+		CardanoNetworkTag,
+		"--fee", fmt.Sprintf("%d", fee),
+		"--tx-out", fmt.Sprintf("%s+%d", cardano_valley_address, bal),
+		"--out-file", txBody,
+		"--socket-path", socketPath,
+	}
+	args = append(args, txIns...)
 	if out, err := execCmd("cardano-cli", args...); err != nil {
 		return fmt.Errorf("fee tx build: %v (%s)", err, out)
 	}
@@ -609,53 +664,18 @@ func payServiceFeeAndDrain(s *AirdropSession) error {
 		return fmt.Errorf("fee tx sign: %v (%s)", err, out)
 	}
 
-	submitArgs := []string{"conway", "transaction", "submit", CardanoNetworkTag, "--tx-file", txSigned}
+	submitArgs := []string{"conway", "transaction", "submit", CardanoNetworkTag, "--tx-file", txSigned,"--socket-path", socketPath}
 	if out, err := execCmd("cardano-cli", submitArgs...); err != nil {
 		return fmt.Errorf("fee tx submit: %v (%s)", err, out)
 	}
 
 	idArgs := []string{"conway", "transaction", "txid", "--tx-file", txSigned}
-	out, err := execCmd("cardano-cli", idArgs...)
+	out, err = execCmd("cardano-cli", idArgs...)
 	if err != nil {
 		return fmt.Errorf("fee txid: %v (%s)", err, out)
 	}
 	s.ServiceFeeTxID = strings.TrimSpace(out)
 
-	// Re-check balance; if any dust remains, attempt final drain to cardano_valley
-	time.Sleep(1 * time.Minute)
-	left, _ := blockfrost.GetAddressBalance(ctx, s.Address)
-	if left > 0 {
-		// Try to empty completely
-		_ = drainAllTo(s, cardano_valley_address)
-	}
-	return nil
-}
-
-func drainAllTo(s *AirdropSession, to string) error {
-	txBody := filepath.Join(s.WalletDir, "drain_tx.raw")
-	txSigned := filepath.Join(s.WalletDir, "drain_tx.signed")
-	args := []string{"conway", "transaction", "build",
-		CardanoNetworkTag,
-		"--change-address", to, // push change to "to"
-		"--tx-out", fmt.Sprintf("%s+1", to), // dummy; change will take the rest
-		"--out-file", txBody,
-	}
-	if out, err := execCmd("cardano-cli", args...); err != nil {
-		return fmt.Errorf("drain build: %v (%s)", err, out)
-	}
-	signArgs := []string{"conway", "transaction", "sign",
-		"--tx-body-file", txBody,
-		"--signing-key-file", s.SKeyFile,
-		CardanoNetworkTag,
-		"--out-file", txSigned,
-	}
-	if out, err := execCmd("cardano-cli", signArgs...); err != nil {
-		return fmt.Errorf("drain sign: %v (%s)", err, out)
-	}
-	submitArgs := []string{"conway", "transaction", "submit", CardanoNetworkTag, "--tx-file", txSigned}
-	if out, err := execCmd("cardano-cli", submitArgs...); err != nil {
-		return fmt.Errorf("drain submit: %v (%s)", err, out)
-	}
 	return nil
 }
 
