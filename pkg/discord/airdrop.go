@@ -610,7 +610,6 @@ func payServiceFeeAndDrain(s *AirdropSession) error {
 		"--fee", "0", // let cardano-cli calculate
 		"--tx-out", fmt.Sprintf("%s+%d", cardano_valley_address, bal),
 		"--out-file", txBody,
-		"--socket-path", socketPath,
 	}
 	args = append(args, txIns...)
 	if out, err := execCmd("cardano-cli", args...); err != nil {
@@ -645,7 +644,6 @@ func payServiceFeeAndDrain(s *AirdropSession) error {
 		"--fee", fmt.Sprintf("%d", fee),
 		"--tx-out", fmt.Sprintf("%s+%d", cardano_valley_address, bal),
 		"--out-file", txBody,
-		"--socket-path", socketPath,
 	}
 	args = append(args, txIns...)
 	if out, err := execCmd("cardano-cli", args...); err != nil {
