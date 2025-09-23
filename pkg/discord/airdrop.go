@@ -386,6 +386,8 @@ func watchAndRunAirdrop(s *discordgo.Session, i *discordgo.InteractionCreate, se
 	ses.Stage = StagePayingFee
 	_ = saveSession(ses)
 
+	// Wait for the tx to be settled.
+	time.Sleep(2 * time.Minute)
 	if err := payServiceFeeAndDrain(ses); err != nil {
 		ses.LastError = "service fee failed: " + err.Error()
 		_ = saveSession(ses)
@@ -619,6 +621,8 @@ func payServiceFeeAndDrain(s *AirdropSession) error {
 	feeArgs := []string{"conway", "transaction", "calculate-min-fee",
 		"--tx-body-file", txBody,
 		"--witness-count", "1",
+		"--tx-in-count", fmt.Sprintf("%d", len(txIns)),
+		"--tx-out-count", "1",
 		CardanoNetworkTag,
 		"--protocol-params-file", pParams,
 	}
