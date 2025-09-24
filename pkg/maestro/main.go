@@ -143,6 +143,7 @@ func GetPolicyHolders(policyID string) ([]Holder, error) {
 
 		resp, err := maestroClient.AddressesHoldingPolicy(policyID, &params)
 		if err != nil {
+			logger.Record.Error("Error fetching policy holders from Maestro", "POLICY", policyID, "RESP", resp, "ERROR", err)
 			return nil, fmt.Errorf("could not get policy holders: %w", err)
 		}
 
