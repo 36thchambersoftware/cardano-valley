@@ -1,6 +1,7 @@
 package discord
 
 import (
+	"cardano-valley/pkg/maestro"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -80,10 +81,17 @@ var CREATE_AIRDROP_HANDLER = func(s *discordgo.Session, i *discordgo.Interaction
 			return
 		}
 	} else {
-		holders, err = queryHoldersByPolicy_Blockfrost(policyID, getEnv("BLOCKFROST_PROJECT_ID"))
+		policyHolders, err := maestro.GetPolicyHolders(policyID)
 		if err != nil {
 			followupError(s, i, "Failed to fetch holders by policy: "+err.Error())
 			return
+		}
+
+		for _, ph := range policyHolders {
+			holders = append(holders, Holder{
+				Address:  ph.Address,
+				Quantity: ph.Quantity,
+			})
 		}
 	}
 	if len(holders) == 0 {
