@@ -143,6 +143,7 @@ func GetPolicyHolders(policyID string) ([]Holder, error) {
 
 	for {
 		// Build request URL with optional cursor
+		//curl --request GET --url 'https://mainnet.gomaestro-api.org/v1/policy/4fe9470db1c495804278c40d9ded1a46cae725a87c5280f17bab281c/addresses?count=100' --header 'api-key: hidden'
 		endpoint, _ := url.Parse(fmt.Sprintf("%s/asset/policy/%s/addresses", MAESTRO_URL, policyID))
 		q := endpoint.Query()
 		if cursor != "" {
@@ -155,7 +156,7 @@ func GetPolicyHolders(policyID string) ([]Holder, error) {
 		if err != nil {
 			return nil, err
 		}
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", loadMaestroToken()))
+		req.Header.Set("api-key", loadMaestroToken())
 
 		// Execute request
 		resp, err := client.Do(req)
