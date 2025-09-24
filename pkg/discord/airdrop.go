@@ -55,7 +55,7 @@ const (
 )
 
 // Required ENV:
-//   BLOCKFROST_API_KEY: string
+//   BLOCKFROST_PROJECT_ID: string
 //   CARDANO_VALLEY_ADDRESS:    cardano addr for the 20 ADA fee
 // Optional:
 //   AIRDROP_PUBLIC_CHANNEL_ID: to post the announcement embed
@@ -166,7 +166,7 @@ func loadHoldersFromAttachment(url string) ([]Holder, error) {
 // 3) accumulate by address (quantity == number of NFTs)
 func queryHoldersByPolicy_Blockfrost(policyID, apiKey string) ([]Holder, error) {
 	if apiKey == "" {
-		return nil, errors.New("BLOCKFROST_API_KEY is required")
+		return nil, errors.New("BLOCKFROST_PROJECT_ID is required")
 	}
 	type asset struct {
 		Asset string `json:"asset"` // policy + hex asset name

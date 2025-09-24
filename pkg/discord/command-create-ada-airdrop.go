@@ -80,7 +80,7 @@ var CREATE_AIRDROP_HANDLER = func(s *discordgo.Session, i *discordgo.Interaction
 			return
 		}
 	} else {
-		holders, err = queryHoldersByPolicy_Blockfrost(policyID, getEnv("BLOCKFROST_API_KEY"))
+		holders, err = queryHoldersByPolicy_Blockfrost(policyID, getEnv("BLOCKFROST_PROJECT_ID"))
 		if err != nil {
 			followupError(s, i, "Failed to fetch holders by policy: "+err.Error())
 			return
