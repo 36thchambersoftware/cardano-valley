@@ -1,15 +1,17 @@
+// Package maestro provides functions for interacting with the Maestro API for Cardano blockchain data.
 package maestro
 
 import (
-	"cardano-valley/pkg/logger"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/maestro-org/go-sdk/client"
-	"github.com/maestro-org/go-sdk/utils"
 )
 
 var (
@@ -33,6 +35,11 @@ type LastUpdated struct {
 	Timestamp string `json:"timestamp,omitempty"`
 	BlockHash string `json:"block_hash,omitempty"`
 	BlockSlot int    `json:"block_slot,omitempty"`
+}
+
+type PolicyHoldersResponse struct {
+	Data   []Holder `json:"data"`
+	Cursor *string `json:"cursor"`
 }
 
 type Holder struct {
@@ -129,45 +136,59 @@ func GetPolicyInformation(ctx context.Context, policyID string) error {
 }
 
 func GetPolicyHolders(policyID string) ([]Holder, error) {
-	if maestroClient == nil {
-		return nil, fmt.Errorf("maestro client not initialized")
-	}
-	
-	var allHolders []Holder
-	var cursor *string // start with nil
+	var all []Holder
+	var cursor string
+
+	client := &http.Client{}
+
 	for {
-		params := utils.Parameters{}
-		if cursor != nil {
-			params.Cursor(*cursor)
+		// Build request URL with optional cursor
+		endpoint, _ := url.Parse(fmt.Sprintf("%s/asset/policy/%s/addresses", MAESTRO_URL, policyID))
+		q := endpoint.Query()
+		if cursor != "" {
+			q.Set("cursor", cursor)
 		}
+		endpoint.RawQuery = q.Encode()
 
-		resp, err := maestroClient.AddressesHoldingPolicy(policyID, &params)
+		// Build request
+		req, err := http.NewRequest("GET", endpoint.String(), nil)
 		if err != nil {
-			logger.Record.Error("Error fetching policy holders from Maestro", "POLICY", policyID, "RESP", resp, "ERROR", err)
-			return nil, fmt.Errorf("could not get policy holders: %w", err)
+			return nil, err
+		}
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", loadMaestroToken()))
+
+		// Execute request
+		resp, err := client.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return nil, fmt.Errorf("API error: %s", string(body))
 		}
 
-		// Convert Maestro response into your Holder struct
-		for _, h := range resp.Data {
-			var quantity uint64 = 0
-			if len(h.Assets) > 0 {
-				for _, asset := range h.Assets {
-					quantity += uint64(asset.Amount)
-				}
-			}
-			allHolders = append(allHolders, Holder{
+		// Decode response
+		var page PolicyHoldersResponse
+		if err := json.NewDecoder(resp.Body).Decode(&page); err != nil {
+			return nil, err
+		}
+
+		// Append this page’s holders
+		for _, h := range page.Data {
+			all = append(all, Holder{
 				Address: h.Address,
-				Quantity:  quantity,
+				Quantity:  h.Quantity,
 			})
 		}
 
-		// Check for next cursor
-		if &resp.NextCursor == nil {
-			break // no more pages
+		// Break if no more cursor
+		if page.Cursor == nil || *page.Cursor == "" {
+			break
 		}
-		cursor = &resp.NextCursor
+		cursor = *page.Cursor
 	}
 
-	logger.Record.Info("MAESTRO Fetched all policy holders", "POLICY", policyID, "TOTAL_HOLDERS", len(allHolders))
-	return allHolders, nil
+	return all, nil
 }
