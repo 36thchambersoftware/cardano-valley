@@ -12,7 +12,7 @@ import (
 )
 var CREATE_AIRDROP_COMMAND = discordgo.ApplicationCommand{
 	Name:        "create-airdrop",
-	Description: "Create a new ADA airdrop (file OR policy_id required).",
+	Description: "Create a new ADA airdrop (file OR policy_id required, along with a minimum of 1 ada per holder).",
 	Options: []*discordgo.ApplicationCommandOption{
 		{
 			Type:        discordgo.ApplicationCommandOptionInteger,
@@ -100,20 +100,31 @@ var CREATE_AIRDROP_HANDLER = func(s *discordgo.Session, i *discordgo.Interaction
 	}
 
 	// Normalize: drop zero/neg qty and invalid addrs
+	totalNFTs := uint64(0)
 	filtered := make([]Holder, 0, len(holders))
 	for _, h := range holders {
+		totalNFTs += h.Quantity
 		if h.Quantity > 0 && strings.HasPrefix(h.Address, "addr") {
 			filtered = append(filtered, h)
 		}
 	}
 	holders = filtered
 
-	// 2) Totals
-	totalNFTs := uint64(0)
-	for _, h := range holders {
-		totalNFTs += h.Quantity
-	}
 	adaPerNFT = float64(totalAda) / float64(totalNFTs)
+	filtered = make([]Holder, 0, len(holders))
+	for _, h := range holders {
+		if float64(h.Quantity) * adaPerNFT > 1.0 {
+			filtered = append(filtered, h)
+		}
+	}
+	skipped := len(holders) - len(filtered)
+	holders = filtered
+	
+	if len(holders) == 0 {
+		followupError(s, i, "No holders with at least 1 ADA airdrop amount (after calculating per-NFT). Try increasing total_ada.")
+		return
+	}
+
 	totalRecipients := uint64(len(holders))
 	totalLovelace := totalAda * 1_000_000
 	totalWithBuffer := totalLovelace + feeBufferLovelace + serviceFeeLovelace
@@ -131,13 +142,13 @@ var CREATE_AIRDROP_HANDLER = func(s *discordgo.Session, i *discordgo.Interaction
 	session.TotalNFTs = totalNFTs
 	session.TotalRecipients = totalRecipients
 	session.TotalLovelaceRequired = totalWithBuffer
-	if attachment != nil {
-		// persist the raw JSON holders for later reference
-		raw, _ := json.MarshalIndent(holders, "", "  ")
-		p := filepath.Join(session.WalletDir, "holders.json")
-		_ = os.WriteFile(p, raw, 0600)
-		session.HoldersPath = p
-	}
+
+	// persist the raw JSON holders for later reference
+	raw, _ := json.MarshalIndent(holders, "", "  ")
+	p := filepath.Join(session.WalletDir, "holders.json")
+	_ = os.WriteFile(p, raw, 0600)
+	session.HoldersPath = p
+
 	if err := saveSession(session); err != nil {
 		followupError(s, i, "Failed to persist session: "+err.Error())
 		return
@@ -156,6 +167,7 @@ var CREATE_AIRDROP_HANDLER = func(s *discordgo.Session, i *discordgo.Interaction
 			{Name: "Required ADA (incl. 5 ADA for tx fees)", Value: fmt.Sprintf("%.6f", float64(totalWithBuffer)/1_000_000.0), Inline: true},
 			{Name: "Service Fee", Value: "20 ADA", Inline: true},
 			{Name: "Deposit Address", Value: "```\n" + session.Address + "\n```", Inline: false},
+			{Name: "Skipping Holders", Value: fmt.Sprintf("%d (less than 1 ADA each)", skipped), Inline: false},
 		},
 		Footer: &discordgo.MessageEmbedFooter{
 			Text: "We’ll watch this address until funded (no timeout).",
