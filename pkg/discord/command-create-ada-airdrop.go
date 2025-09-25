@@ -87,10 +87,10 @@ var CREATE_AIRDROP_HANDLER = func(s *discordgo.Session, i *discordgo.Interaction
 			return
 		}
 
-		for _, ph := range policyHolders {
+		for address, qty := range policyHolders {
 			holders = append(holders, Holder{
-				Address:  ph.Address,
-				Quantity: ph.Quantity,
+				Address:  address,
+				Quantity: qty,
 			})
 		}
 	}

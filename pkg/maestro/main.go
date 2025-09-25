@@ -2,6 +2,7 @@
 package maestro
 
 import (
+	"cardano-valley/pkg/logger"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -22,7 +23,7 @@ var (
 )
 
 type PolicyMints struct {
-	Data        []MintData      `json:"data,omitempty"`
+	Data        []MintData  `json:"data,omitempty"`
 	LastUpdated LastUpdated `json:"last_updated,omitempty"`
 	NextCursor  any         `json:"next_cursor,omitempty"`
 }
@@ -39,13 +40,20 @@ type LastUpdated struct {
 
 type PolicyHoldersResponse struct {
 	Data   []Holder `json:"data"`
-	Cursor *string `json:"cursor"`
+	Cursor *string  `json:"cursor"`
 }
 
 type Holder struct {
-	Address  string `json:"address,omitempty"`  // Address of the holder
-	Quantity uint64 `json:"quantity,omitempty"` // Quantity of the asset held
+	Address  string   `json:"address,omitempty"`  // Address of the holder
+	Assets   []Amount `json:"assets,omitempty"` // Quantity of the asset held
 }
+
+type Amount struct {
+	Name     string `json:"name,omitempty"`      // Asset unit (policyID + asset name in hex)
+	Amount   uint64 `json:"amount,omitempty"` // Quantity of the asset
+}
+
+var AllHolders map[string]uint64
 
 func loadMaestroToken() string {
 	token, ok := os.LookupEnv("MAESTRO_TOKEN")
@@ -135,8 +143,8 @@ func GetPolicyInformation(ctx context.Context, policyID string) error {
 	return nil
 }
 
-func GetPolicyHolders(policyID string) ([]Holder, error) {
-	var all []Holder
+func GetPolicyHolders(policyID string) (map[string]uint64, error) {
+	all := make(map[string]uint64)
 	var cursor string
 
 	client := &http.Client{}
@@ -172,16 +180,24 @@ func GetPolicyHolders(policyID string) ([]Holder, error) {
 
 		// Decode response
 		var page PolicyHoldersResponse
-		if err := json.NewDecoder(resp.Body).Decode(&page); err != nil {
+		data, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+
+		logger.Record.Info("PAGE", "data", string(data))
+
+		err = json.Unmarshal(data, &page)
+		if err != nil {
 			return nil, err
 		}
 
 		// Append this page’s holders
 		for _, h := range page.Data {
-			all = append(all, Holder{
-				Address: h.Address,
-				Quantity:  h.Quantity,
-			})
+			all[h.Address] = 0
+			for _, a := range h.Assets {
+				all[h.Address] += a.Amount
+			}
 		}
 
 		// Break if no more cursor
@@ -189,6 +205,7 @@ func GetPolicyHolders(policyID string) ([]Holder, error) {
 			break
 		}
 		cursor = *page.Cursor
+		logger.Record.Info("CURSOR", "cursor", cursor)
 	}
 
 	return all, nil
