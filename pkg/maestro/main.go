@@ -39,8 +39,8 @@ type LastUpdated struct {
 }
 
 type PolicyHoldersResponse struct {
-	Data   []Holder `json:"data"`
-	Cursor *string  `json:"cursor"`
+	Data       []Holder `json:"data"`
+	NextCursor *string  `json:"next_cursor"`
 }
 
 type Holder struct {
@@ -201,10 +201,10 @@ func GetPolicyHolders(policyID string) (map[string]uint64, error) {
 		}
 
 		// Break if no more cursor
-		if page.Cursor == nil || *page.Cursor == "" {
+		if page.NextCursor == nil || *page.NextCursor == "" {
 			break
 		}
-		cursor = *page.Cursor
+		cursor = *page.NextCursor
 		logger.Record.Info("CURSOR", "cursor", cursor)
 	}
 
