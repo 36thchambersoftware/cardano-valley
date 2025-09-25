@@ -2,6 +2,7 @@
 package maestro
 
 import (
+	"cardano-valley/pkg/logger"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -167,6 +168,7 @@ func GetPolicyHolders(policyID string) ([]Holder, error) {
 
 		if resp.StatusCode != http.StatusOK {
 			body, _ := io.ReadAll(resp.Body)
+			logger.Record.Error("Maestro API error", slog.Int("status", resp.StatusCode), slog.String("body", string(body)), "RESP", resp)
 			return nil, fmt.Errorf("API error: %s", string(body))
 		}
 
