@@ -2,7 +2,6 @@
 package maestro
 
 import (
-	"cardano-valley/pkg/logger"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -145,7 +144,7 @@ func GetPolicyHolders(policyID string) ([]Holder, error) {
 	for {
 		// Build request URL with optional cursor
 		//curl --request GET --url 'https://mainnet.gomaestro-api.org/v1/policy/4fe9470db1c495804278c40d9ded1a46cae725a87c5280f17bab281c/addresses?count=100' --header 'api-key: hidden'
-		endpoint, _ := url.Parse(fmt.Sprintf("%s/asset/policy/%s/addresses", MAESTRO_URL, policyID))
+		endpoint, _ := url.Parse(fmt.Sprintf("%s/policy/%s/addresses", MAESTRO_URL, policyID))
 		q := endpoint.Query()
 		if cursor != "" {
 			q.Set("cursor", cursor)
@@ -168,7 +167,6 @@ func GetPolicyHolders(policyID string) ([]Holder, error) {
 
 		if resp.StatusCode != http.StatusOK {
 			body, _ := io.ReadAll(resp.Body)
-			logger.Record.Error("Maestro API error", slog.Int("status", resp.StatusCode), slog.String("body", string(body)), "RESP", resp)
 			return nil, fmt.Errorf("API error: %s", string(body))
 		}
 
