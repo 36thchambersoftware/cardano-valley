@@ -352,7 +352,7 @@ func GetPolicyHolders(policyID string) (map[string]uint64, error) {
 		if offset != 0 {
 			q.Set("offset", string(offset))
 		}
-		endpoint.RawQuery = q.Encode()
+
 		slog.Info("Fetching Koios policy asset addresses", "URL", endpoint.String())
 
 		req, err := http.NewRequest("GET", endpoint.String(), nil)
