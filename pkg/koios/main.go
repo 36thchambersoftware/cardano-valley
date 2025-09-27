@@ -346,11 +346,6 @@ func GetPolicyHolders(policyID string) (map[string]uint64, error) {
 	client := &http.Client{}
 
 	for {
-		options := koios.RequestOptions{
-		}
-		if offset != 0 {
-			options.SetCurrentPage(uint(offset))
-		}
 		//curl -X GET "https://api.koios.rest/api/v1/policy_asset_addresses?_asset_policy=e13f55c16b8718edac43614146c00cadc45991af3a5355d0386a9f03"  -H "accept: application/json" 
 		endpoint, _ := url.Parse(fmt.Sprintf("%spolicy_asset_addresses?_asset_policy=%s", KOIOS_URL, policyID))
 		q := endpoint.Query()
@@ -358,6 +353,7 @@ func GetPolicyHolders(policyID string) (map[string]uint64, error) {
 			q.Set("offset", string(offset))
 		}
 		endpoint.RawQuery = q.Encode()
+		slog.Info("Fetching Koios policy asset addresses", "URL", endpoint.String())
 
 		req, err := http.NewRequest("GET", endpoint.String(), nil)
 		if err != nil {
@@ -378,7 +374,7 @@ func GetPolicyHolders(policyID string) (map[string]uint64, error) {
 		if err != nil {
 			return nil, err
 		}
-		logger.Record.Info("PAGE", "data", string(data))
+		logger.Record.Info("PAGE", "length", len(data), "offset", offset, "last", string(data[len(data)-1]))
 
 		var page []koios.AssetHolder
 		err = json.Unmarshal(data, &page)
