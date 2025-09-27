@@ -337,15 +337,12 @@ func GetPolicyHolders(policyID string) (map[string]uint64, error) {
 	offset := 0
 
 	for {
-		var options *koios.RequestOptions
+		options := koios.RequestOptions{}
 		if offset != 0 {
-			if options == nil {
-				options = &koios.RequestOptions{}
-			}
 			options.SetCurrentPage(uint(offset))
 		}
 
-		result, err := client.GetPolicyAssetAddresses(context.Background(), koios.PolicyID(policyID), options)
+		result, err := client.GetPolicyAssetAddresses(context.Background(), koios.PolicyID(policyID), &options)
 		if err != nil {
 			return nil, err
 		}
