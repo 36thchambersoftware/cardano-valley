@@ -380,18 +380,18 @@ func GetPolicyHolders(policyID string) (map[string]uint64, error) {
 		}
 		logger.Record.Info("PAGE", "data", string(data))
 
-		var page koios.AssetAddressListResponse
+		var page []koios.AssetHolder
 		err = json.Unmarshal(data, &page)
 		if err != nil {
 			return nil, err
 		}
 		
-		for _, holder := range page.Data {
+		for _, holder := range page {
 			qty, _ := strconv.ParseUint(holder.Quantity.String(), 10, 64)
 			all[holder.PaymentAddress.String()] += qty
 		}
 
-		if len(page.Data) == 1000 {
+		if len(page) == 1000 {
 			offset += 1000
 		}
 	}
