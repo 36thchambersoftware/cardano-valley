@@ -332,3 +332,37 @@ func getBatchedAddressInformation(ctx context.Context, addresses []string) ([]ko
 	return allAddressInfos, nil
 }
 
+func GetPolicyHolders(policyID string) (map[string]uint64, error) {
+	all := make(map[string]uint64)
+	offset := 0
+
+	for {
+		var options *koios.RequestOptions
+		if offset != 0 {
+			if options == nil {
+				options = &koios.RequestOptions{}
+			}
+			options.SetCurrentPage(uint(offset))
+		}
+
+		result, err := client.GetPolicyAssetAddresses(context.Background(), koios.PolicyID(policyID), options)
+		if err != nil {
+			return nil, err
+		}
+
+		if result.StatusCode != 200 {
+			return nil, errors.New(result.Response.Error.Message)
+		}
+
+		for _, holder := range result.Data {
+			qty, _ := strconv.ParseUint(holder.Quantity.String(), 10, 64)
+			all[holder.PaymentAddress.String()] += qty
+		}
+
+		if len(result.Data) == 1000 {
+			offset += 1000
+		}
+	}
+
+	return all, nil
+}

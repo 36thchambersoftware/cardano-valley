@@ -1,7 +1,7 @@
 package discord
 
 import (
-	"cardano-valley/pkg/maestro"
+	"cardano-valley/pkg/koios"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -81,7 +81,7 @@ var CREATE_AIRDROP_HANDLER = func(s *discordgo.Session, i *discordgo.Interaction
 			return
 		}
 	} else {
-		policyHolders, err := maestro.GetPolicyHolders(policyID)
+		policyHolders, err := koios.GetPolicyHolders(policyID)
 		if err != nil {
 			followupError(s, i, "Failed to fetch holders by policy: "+err.Error())
 			return
