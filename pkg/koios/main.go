@@ -347,12 +347,7 @@ func GetPolicyHolders(policyID string) (map[string]uint64, error) {
 
 	for {
 		//curl -X GET "https://api.koios.rest/api/v1/policy_asset_addresses?_asset_policy=e13f55c16b8718edac43614146c00cadc45991af3a5355d0386a9f03"  -H "accept: application/json" 
-		endpoint, _ := url.Parse(fmt.Sprintf("%spolicy_asset_addresses?_asset_policy=%s", KOIOS_URL, policyID))
-		q := endpoint.Query()
-		if offset != 0 {
-			q.Set("offset", string(offset))
-		}
-
+		endpoint, _ := url.Parse(fmt.Sprintf("%spolicy_asset_addresses?_asset_policy=%s&offset=%d", KOIOS_URL, policyID, offset))
 		slog.Info("Fetching Koios policy asset addresses", "URL", endpoint.String())
 
 		req, err := http.NewRequest("GET", endpoint.String(), nil)
