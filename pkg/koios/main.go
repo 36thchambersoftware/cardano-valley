@@ -1,10 +1,15 @@
 package koios
 
 import (
+	"cardano-valley/pkg/logger"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
+	"net/url"
 	"os"
 	"sort"
 	"strconv"
@@ -12,8 +17,11 @@ import (
 	"github.com/cardano-community/koios-go-client/v4"
 )
 
-var client *koios.Client
-var koiosToken string
+var ( 
+	client *koios.Client
+	koiosToken string
+	KOIOS_URL = "https://api.koios.rest/api/v1/"
+)
 type EpochNo koios.EpochNo
 
 func init() {
@@ -335,28 +343,55 @@ func getBatchedAddressInformation(ctx context.Context, addresses []string) ([]ko
 func GetPolicyHolders(policyID string) (map[string]uint64, error) {
 	all := make(map[string]uint64)
 	offset := 0
+	client := &http.Client{}
 
 	for {
-		options := koios.RequestOptions{}
+		options := koios.RequestOptions{
+		}
 		if offset != 0 {
 			options.SetCurrentPage(uint(offset))
 		}
+		//curl -X GET "https://api.koios.rest/api/v1/policy_asset_addresses?_asset_policy=e13f55c16b8718edac43614146c00cadc45991af3a5355d0386a9f03"  -H "accept: application/json" 
+		endpoint, _ := url.Parse(fmt.Sprintf("%spolicy_asset_addresses?_asset_policy=%s", KOIOS_URL, policyID))
+		q := endpoint.Query()
+		if offset != 0 {
+			q.Set("offset", string(offset))
+		}
+		endpoint.RawQuery = q.Encode()
 
-		result, err := client.GetPolicyAssetAddresses(context.Background(), koios.PolicyID(policyID), &options)
+		req, err := http.NewRequest("GET", endpoint.String(), nil)
 		if err != nil {
 			return nil, err
 		}
+		resp, err := client.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
 
-		if result.StatusCode != 200 {
-			return nil, errors.New(result.Response.Error.Message)
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return nil, fmt.Errorf("API error: %s", string(body))
 		}
 
-		for _, holder := range result.Data {
+		data, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		logger.Record.Info("PAGE", "data", string(data))
+
+		var page koios.AssetAddressListResponse
+		err = json.Unmarshal(data, &page)
+		if err != nil {
+			return nil, err
+		}
+		
+		for _, holder := range page.Data {
 			qty, _ := strconv.ParseUint(holder.Quantity.String(), 10, 64)
 			all[holder.PaymentAddress.String()] += qty
 		}
 
-		if len(result.Data) == 1000 {
+		if len(page.Data) == 1000 {
 			offset += 1000
 		}
 	}
