@@ -393,6 +393,8 @@ func GetPolicyHolders(policyID string) (map[string]uint64, error) {
 
 		if len(page) == 1000 {
 			offset += 1000
+		} else {
+			break
 		}
 	}
 
