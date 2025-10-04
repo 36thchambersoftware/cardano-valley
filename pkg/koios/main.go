@@ -369,7 +369,6 @@ func GetPolicyHolders(policyID string) (map[string]uint64, error) {
 		if err != nil {
 			return nil, err
 		}
-		logger.Record.Info("PAGE", "length", len(data), "offset", offset, "last", string(data[len(data)-1]))
 
 		var page []koios.AssetHolder
 		err = json.Unmarshal(data, &page)
@@ -382,6 +381,7 @@ func GetPolicyHolders(policyID string) (map[string]uint64, error) {
 			all[holder.PaymentAddress.String()] += qty
 		}
 
+		logger.Record.Info("Fetched Koios policy asset addresses page", "POLICY", policyID, "OFFSET", offset, "PAGE_SIZE", len(page), "TOTAL_HOLDERS_SO_FAR", len(all))
 		if len(page) == 1000 {
 			offset += 1000
 		} else {

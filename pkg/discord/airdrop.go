@@ -95,11 +95,11 @@ type AirdropSession struct {
 	// input config
 	PolicyID       string   `json:"policy_id,omitempty"`
 	HoldersPath    string   `json:"holders_path,omitempty"` // JSON file path (if uploaded)
-	ADAperNFT      float64  `json:"ada_per_nft"`
+	ADAperAsset      float64  `json:"ada_per_asset"`
 	Holders        []Holder `json:"holders"`
 
 	// computed
-	TotalNFTs              uint64      `json:"total_nfts"`
+	TotalAssets              uint64      `json:"total_assets"`
 	TotalRecipients        uint64      `json:"total_recipients"`
 	TotalLovelaceRequired  uint64    `json:"total_lovelace_required"` // includes 5 ADA buffer
 	DistributionTxIDs      []string `json:"distribution_tx_ids"`
@@ -403,8 +403,8 @@ func watchAndRunAirdrop(s *discordgo.Session, i *discordgo.InteractionCreate, se
 	var buf strings.Builder
 	fmt.Fprintf(&buf, "🎉 **Airdrop Complete!**\n\n")
 	fmt.Fprintf(&buf, "- Recipients: %d\n", ses.TotalRecipients)
-	fmt.Fprintf(&buf, "- Total NFTs: %d\n", ses.TotalNFTs)
-	fmt.Fprintf(&buf, "- ADA/NFT: %.6f\n", ses.ADAperNFT)
+	fmt.Fprintf(&buf, "- Total Assets: %d\n", ses.TotalAssets)
+	fmt.Fprintf(&buf, "- ADA/Asset: %.6f\n", ses.ADAperAsset)
 	fmt.Fprintf(&buf, "- Distribution TXs:\n")
 	for _, id := range ses.DistributionTxIDs {
 		fmt.Fprintf(&buf, "  • %s\n", id)
@@ -419,10 +419,10 @@ func watchAndRunAirdrop(s *discordgo.Session, i *discordgo.InteractionCreate, se
 	if publicChan != "" {
 		embed := &discordgo.MessageEmbed{
 			Title:       "🌾 Cardano Valley Airdrop Complete",
-			Description: fmt.Sprintf("Distributed to **%d** wallets across **%d** NFTs.", ses.TotalRecipients, ses.TotalNFTs),
+			Description: fmt.Sprintf("Distributed to **%d** wallets across **%d** assets.", ses.TotalRecipients, ses.TotalAssets),
 			Color:       0xF59E0B,
 			Fields: []*discordgo.MessageEmbedField{
-				{Name: "ADA/NFT", Value: fmt.Sprintf("%.6f", ses.ADAperNFT), Inline: true},
+				{Name: "ADA/Asset", Value: fmt.Sprintf("%.6f", ses.ADAperAsset), Inline: true},
 				{Name: "TX Count", Value: fmt.Sprintf("%d", len(ses.DistributionTxIDs)), Inline: true},
 			},
 			Footer: &discordgo.MessageEmbedFooter{Text: "Cardano Valley • PREEB"},
@@ -445,7 +445,7 @@ func buildSignSubmitAirdropTxs(ses *AirdropSession) ([]string, error) {
 	// Chunk outputs into batches
 	var outputs []out
 	for _, h := range ses.Holders {
-		amt := int64(math.Round(float64(h.Quantity) * ses.ADAperNFT * 1_000_000))
+		amt := int64(math.Round(float64(h.Quantity) * ses.ADAperAsset * 1_000_000))
 		if amt > 0 {
 			outputs = append(outputs, out{Addr: h.Address, Lovelace: amt})
 		}

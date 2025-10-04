@@ -17,7 +17,7 @@ var CREATE_AIRDROP_COMMAND = discordgo.ApplicationCommand{
 		{
 			Type:        discordgo.ApplicationCommandOptionInteger,
 			Name:        "total_ada",
-			Description: "Total ADA for airdrop (e.g., 500 or 767, etc. We'll calculate per NFT.)",
+			Description: "Total ADA for airdrop (e.g., 500 or 767, etc. We'll calculate per asset.)",
 			Required:    true,
 		},
 		{
@@ -41,7 +41,7 @@ var CREATE_AIRDROP_HANDLER = func(s *discordgo.Session, i *discordgo.Interaction
 	var (
 		attachment *discordgo.MessageAttachment
 		policyID   string
-		adaPerNFT  float64
+		adaPerAsset  float64
 		totalAda   uint64
 	)
 
@@ -100,20 +100,20 @@ var CREATE_AIRDROP_HANDLER = func(s *discordgo.Session, i *discordgo.Interaction
 	}
 
 	// Normalize: drop zero/neg qty and invalid addrs
-	totalNFTs := uint64(0)
+	totalAssets := uint64(0)
 	filtered := make([]Holder, 0, len(holders))
 	for _, h := range holders {
-		totalNFTs += h.Quantity
+		totalAssets += h.Quantity
 		if h.Quantity > 0 && strings.HasPrefix(h.Address, "addr") {
 			filtered = append(filtered, h)
 		}
 	}
 	holders = filtered
 
-	adaPerNFT = float64(totalAda) / float64(totalNFTs)
+	adaPerAsset = float64(totalAda) / float64(totalAssets)
 	filtered = make([]Holder, 0, len(holders))
 	for _, h := range holders {
-		if float64(h.Quantity) * adaPerNFT > 1.0 {
+		if float64(h.Quantity) * adaPerAsset > 1.0 {
 			filtered = append(filtered, h)
 		}
 	}
@@ -121,7 +121,7 @@ var CREATE_AIRDROP_HANDLER = func(s *discordgo.Session, i *discordgo.Interaction
 	holders = filtered
 	
 	if len(holders) == 0 {
-		followupError(s, i, "No holders with at least 1 ADA airdrop amount (after calculating per-NFT). Try increasing total_ada.")
+		followupError(s, i, "No holders with at least 1 ADA airdrop amount (after calculating per-Asset). Try increasing total_ada.")
 		return
 	}
 
@@ -136,10 +136,10 @@ var CREATE_AIRDROP_HANDLER = func(s *discordgo.Session, i *discordgo.Interaction
 		return
 	}
 
-	session.ADAperNFT = adaPerNFT
+	session.ADAperAsset = adaPerAsset
 	session.PolicyID = policyID
 	session.Holders = holders
-	session.TotalNFTs = totalNFTs
+	session.TotalAssets = totalAssets
 	session.TotalRecipients = totalRecipients
 	session.TotalLovelaceRequired = totalWithBuffer
 
@@ -162,8 +162,8 @@ var CREATE_AIRDROP_HANDLER = func(s *discordgo.Session, i *discordgo.Interaction
 		Fields: []*discordgo.MessageEmbedField{
 			{Name: "Policy ID", Value: valOr(policyID, "—"), Inline: true},
 			{Name: "Recipients", Value: fmt.Sprintf("%d", totalRecipients), Inline: true},
-			{Name: "Total NFTs", Value: fmt.Sprintf("%d", totalNFTs), Inline: true},
-			{Name: "ADA per NFT", Value: fmt.Sprintf("%.6f", adaPerNFT), Inline: true},
+			{Name: "Total Assets", Value: fmt.Sprintf("%d", totalAssets), Inline: true},
+			{Name: "ADA per Asset", Value: fmt.Sprintf("%.6f", adaPerAsset), Inline: true},
 			{Name: "Required ADA (incl. 5 ADA for tx fees)", Value: fmt.Sprintf("%.6f", float64(totalWithBuffer)/1_000_000.0), Inline: true},
 			{Name: "Service Fee", Value: "20 ADA", Inline: true},
 			{Name: "Deposit Address", Value: "```\n" + session.Address + "\n```", Inline: false},
